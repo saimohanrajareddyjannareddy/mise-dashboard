@@ -16,6 +16,7 @@ import {
   Plus,
   ChevronsUpDown,
   Check,
+  Menu,
 } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
 import { useRestaurant } from '@/lib/restaurant'
@@ -58,6 +59,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const h = new Date().getHours()
     setDaypart(h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening')
   }, [])
+
+  // Mobile-only slide-in drawer for the sidebar (below md). No effect at md+,
+  // where the sidebar is permanently visible. Auto-closes on route change so a
+  // nav tap doesn't leave the drawer covering the page.
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  useEffect(() => {
+    setDrawerOpen(false)
+  }, [pathname])
 
   // Custom restaurant-switcher dropdown (replaces an unstyleable native <select>).
   const [switcherOpen, setSwitcherOpen] = useState(false)
@@ -110,9 +119,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const settingsActive = pathname.startsWith('/dashboard/settings')
 
   return (
-    <div className="flex min-h-screen bg-cream font-sans text-ink">
-      {/* SIDEBAR */}
-      <aside className="fixed inset-y-0 left-0 z-10 flex w-60 flex-col bg-forest px-4 py-6 text-[#DDE7E0]">
+    <div className="flex min-h-screen overflow-x-hidden bg-cream font-sans text-ink md:overflow-x-visible">
+      {/* Mobile drawer overlay — only below md, only when the drawer is open.
+          Tapping it closes the drawer. */}
+      {drawerOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-forest/50 md:hidden"
+          aria-hidden="true"
+          onClick={() => setDrawerOpen(false)}
+        />
+      )}
+
+      {/* SIDEBAR — permanent at md+; below md it's an off-canvas drawer that
+          slides in from the left when drawerOpen. */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 flex w-60 flex-col bg-forest px-4 py-6 text-[#DDE7E0] transition-transform md:z-10 md:translate-x-0 ${
+          drawerOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
         <Link href="/dashboard" className="mb-5 px-2 font-serif text-[26px] text-cream">
           mise<span className="text-terracotta-hover">.</span>
         </Link>
@@ -219,12 +243,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* CONTENT */}
-      <div className="ml-60 flex min-w-0 flex-1 flex-col">
+      <div className="ml-0 flex min-w-0 flex-1 flex-col md:ml-60">
         {/* Top bar */}
-        <header className="sticky top-0 z-[5] flex items-center justify-between gap-4 border-b border-ink/[0.08] bg-cream/95 px-8 py-4 backdrop-blur">
-          <div className="min-w-0">
-            <h1 className="truncate font-serif text-[28px] leading-none text-ink">{greeting}</h1>
-            {current && <p className="mt-1.5 truncate text-[13px] text-ink-muted">{current.name}</p>}
+        <header className="sticky top-0 z-[5] flex items-center justify-between gap-3 border-b border-ink/[0.08] bg-cream/95 px-4 py-4 backdrop-blur md:gap-4 md:px-8">
+          <div className="flex min-w-0 items-center gap-3">
+            {/* Hamburger — mobile only; toggles the sidebar drawer. */}
+            <button
+              type="button"
+              aria-label="Open menu"
+              aria-expanded={drawerOpen}
+              onClick={() => setDrawerOpen((o) => !o)}
+              className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[9px] border border-ink/[0.14] bg-cream-surface text-ink-2 transition hover:bg-cream-surface-alt md:hidden"
+            >
+              <Menu size={18} />
+            </button>
+            <div className="min-w-0">
+              <h1 className="truncate font-serif text-[28px] leading-none text-ink">{greeting}</h1>
+              {current && <p className="mt-1.5 truncate text-[13px] text-ink-muted">{current.name}</p>}
+            </div>
           </div>
           <div className="flex flex-shrink-0 items-center gap-3">
             <button
@@ -243,9 +279,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </button>
             <Link
               href="/dashboard/upload"
+              aria-label="Add invoice"
               className="flex items-center gap-2 rounded-[10px] bg-terracotta px-4 py-2.5 text-[14px] font-semibold text-[#FDF8F0] shadow-[0_2px_8px_rgba(196,100,45,.3)] transition hover:bg-terracotta-hover"
             >
-              <Plus size={16} strokeWidth={2.5} /> Add invoice
+              {/* Label collapses to an icon-only button below md so the header row fits the viewport. */}
+              <Plus size={16} strokeWidth={2.5} /><span className="hidden md:inline">Add invoice</span>
             </Link>
             {/* Preserves the existing create-restaurant wiring (its own styling). */}
             <AddRestaurantButton />

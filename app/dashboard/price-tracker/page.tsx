@@ -72,6 +72,7 @@ export default function PriceTrackerPage() {
       </div>
 
       <div className="bg-white rounded-xl border overflow-hidden">
+        <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b">
             <tr className="text-gray-500 text-xs uppercase tracking-wide">
@@ -107,6 +108,7 @@ export default function PriceTrackerPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   )

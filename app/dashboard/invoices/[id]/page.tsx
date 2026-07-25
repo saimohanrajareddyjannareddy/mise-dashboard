@@ -100,6 +100,7 @@ export default function InvoiceDetailPage() {
             <div className="px-5 py-3 border-b bg-gray-50">
               <h2 className="font-semibold text-gray-700 text-sm">{regular.length} Line Items</h2>
             </div>
+            <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
             <table className="w-full text-sm">
               <thead className="border-b">
                 <tr className="text-gray-400 text-xs uppercase tracking-wide">
@@ -126,6 +127,7 @@ export default function InvoiceDetailPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           </>
         )}
 
@@ -134,6 +136,7 @@ export default function InvoiceDetailPage() {
             <div className="px-5 py-3 border-t border-b bg-red-50">
               <h2 className="font-semibold text-red-700 text-sm">{credits.length} Credit{credits.length > 1 ? 's' : ''} / Return{credits.length > 1 ? 's' : ''}</h2>
             </div>
+            <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
             <table className="w-full text-sm">
               <thead className="border-b bg-red-50">
                 <tr className="text-red-400 text-xs uppercase tracking-wide">
@@ -160,6 +163,7 @@ export default function InvoiceDetailPage() {
                 ))}
               </tbody>
             </table>
+            </div>
             <div className="px-5 py-3 border-t bg-red-50 text-right text-sm font-semibold text-red-700">
               Total Credits: ${creditTotal.toFixed(2)}
             </div>
