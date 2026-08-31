@@ -40,7 +40,8 @@ export default function AddRestaurantButton() {
         className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-400 transition shadow-sm"
       >
         <Plus size={14} strokeWidth={2.5} />
-        Add Restaurant
+        {/* Icon-only below md so the shell header fits a mobile viewport (label preserved at md+). */}
+        <span className="hidden md:inline">Add Restaurant</span>
       </button>
 
       {open && (
