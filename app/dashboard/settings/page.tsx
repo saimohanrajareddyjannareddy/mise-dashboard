@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRestaurant } from '@/lib/restaurant'
-import { CheckCircle, AlertCircle, Link2, Key, AlertTriangle, Trash2, Store } from 'lucide-react'
+import { CheckCircle, AlertCircle, Link2, Key, AlertTriangle, Trash2, Store, CreditCard, X } from 'lucide-react'
 
 type DeletionCounts = {
   invoice_files: number
@@ -30,6 +30,12 @@ export default function SettingsPage() {
   const [rdStatus, setRdStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [rdErr, setRdErr] = useState<string | null>(null)
   const [rdConnected, setRdConnected] = useState(false)
+
+  // Business cards state
+  const [cards, setCards] = useState<string[]>([])
+  const [newCard, setNewCard] = useState('')
+  const [cardStatus, setCardStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const [cardErr, setCardErr] = useState<string | null>(null)
 
   // Danger Zone state
   const [counts, setCounts] = useState<DeletionCounts | null>(null)
@@ -124,6 +130,49 @@ export default function SettingsPage() {
     setTimeout(() => setRdStatus('idle'), 3000)
   }
 
+  // Business cards — load on restaurant switch
+  useEffect(() => {
+    if (!restaurantId) { setCards([]); return }
+    setCardErr(null)
+    supabase
+      .from('restaurants')
+      .select('known_owner_cards')
+      .eq('id', restaurantId)
+      .single()
+      .then(({ data }) => {
+        setCards((data?.known_owner_cards as string[]) ?? [])
+      })
+  }, [restaurantId])
+
+  function addCard() {
+    const c = newCard.trim()
+    if (!/^\d{4}$/.test(c)) { setCardErr('Enter exactly 4 digits.'); return }
+    if (cards.includes(c)) { setCardErr('That card is already listed.'); setNewCard(''); return }
+    setCards([...cards, c])
+    setNewCard('')
+    setCardErr(null)
+  }
+
+  function removeCard(c: string) {
+    setCards(cards.filter(x => x !== c))
+  }
+
+  async function saveCards() {
+    if (!restaurantId) return
+    setCardStatus('saving'); setCardErr(null)
+    const { error } = await supabase.rpc('update_my_restaurant_cards', {
+      p_restaurant_id: restaurantId,
+      p_cards: cards,
+    })
+    if (error) {
+      setCardStatus('error')
+      setCardErr(error.message || 'Save failed')
+      return
+    }
+    setCardStatus('saved')
+    setTimeout(() => setCardStatus('idle'), 3000)
+  }
+
   // Pre-flight counts for the Danger Zone — refreshes on restaurant switch.
   useEffect(() => {
     if (!restaurantId) { setCounts(null); return }
@@ -158,8 +207,6 @@ export default function SettingsPage() {
     setDeleting(true); setDeleteErr(null)
     try {
       await deleteRestaurant(restaurantId)
-      // deleteRestaurant switches `current` to another restaurant if available.
-      // Dashboard layout will redirect / show the empty state automatically.
     } catch (e) {
       setDeleteErr(e instanceof Error ? e.message : 'Delete failed')
     } finally {
@@ -308,6 +355,65 @@ export default function SettingsPage() {
             <div className="text-xs text-gray-400 mt-0.5">The Apify actor runs daily and discovers any active restaurant with credentials. New files show up under <span className="font-medium">AI Automation → portal</span> once processed.</div>
           </div>
         )}
+      </div>
+
+      <div className="bg-white rounded-xl border p-6 mb-6">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+            <CreditCard size={18} className="text-purple-600" />
+          </div>
+          <div>
+            <div className="font-semibold text-gray-900">Business Cards</div>
+            <div className="text-sm text-gray-500">Last 4 digits of the cards this restaurant pays with. Invoices paid on other cards are skipped as personal.</div>
+          </div>
+        </div>
+
+        {cards.length > 0 ? (
+          <div className="flex flex-wrap gap-2 mb-4">
+            {cards.map(c => (
+              <span key={c} className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-700 text-sm rounded-full pl-3 pr-1.5 py-1 font-medium">
+                •••• {c}
+                <button onClick={() => removeCard(c)} className="w-5 h-5 rounded-full hover:bg-gray-300 flex items-center justify-center text-gray-500 hover:text-gray-800 transition">
+                  <X size={12} />
+                </button>
+              </span>
+            ))}
+          </div>
+        ) : (
+          <div className="text-sm text-gray-400 mb-4">No cards yet. Add the last 4 digits of each business card below.</div>
+        )}
+
+        <div className="flex items-center gap-2 mb-4">
+          <input
+            value={newCard}
+            onChange={e => { setNewCard(e.target.value.replace(/\D/g, '').slice(0, 4)); setCardErr(null) }}
+            onKeyDown={e => { if (e.key === 'Enter') addCard() }}
+            placeholder="1234"
+            inputMode="numeric"
+            maxLength={4}
+            className="w-24 border rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-amber-500 tracking-widest"
+          />
+          <button onClick={addCard}
+            className="px-4 py-2 bg-white border rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition">
+            Add card
+          </button>
+        </div>
+
+        {cardErr && (
+          <div className="bg-red-50 text-red-700 text-sm p-2.5 rounded mb-3 flex items-start gap-2">
+            <AlertCircle size={14} className="mt-0.5 shrink-0" />
+            {cardErr}
+          </div>
+        )}
+
+        <div className="flex items-center gap-3">
+          <button onClick={saveCards} disabled={cardStatus === 'saving'}
+            className="px-5 py-2 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600 disabled:opacity-50 transition">
+            {cardStatus === 'saving' ? 'Saving...' : 'Save cards'}
+          </button>
+          {cardStatus === 'saved' && <span className="text-sm text-green-600 flex items-center gap-1"><CheckCircle size={14} /> Saved</span>}
+          {cardStatus === 'error' && <span className="text-sm text-red-500 flex items-center gap-1"><AlertCircle size={14} /> Error saving</span>}
+        </div>
       </div>
 
       <div className="bg-gray-50 rounded-xl border border-dashed p-6 text-center text-gray-400 mb-6">
