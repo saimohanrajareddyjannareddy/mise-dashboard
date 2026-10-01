@@ -45,3 +45,6 @@ next-env.d.ts
 design-imports/
 *.old
 
+
+# clover sandbox seeder state (local order-id tracking)
+scripts/.clover-seed.json

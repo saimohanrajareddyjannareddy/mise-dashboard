@@ -20,6 +20,9 @@ export default function DashboardPage() {
   const [topCategory, setTopCategory] = useState('-')
   const [categoryData, setCategoryData] = useState<CategorySpend[]>([])
   const [recentInvoices, setRecentInvoices] = useState<RecentInvoice[]>([])
+  // Food cost % = invoice spend ÷ Clover net sales, fixed trailing-30-day window.
+  // null = no sales synced yet (or zero sales).
+  const [foodCostPct, setFoodCostPct] = useState<number | null>(null)
 
   useEffect(() => {
     if (!restaurantId) return
@@ -96,6 +99,19 @@ export default function DashboardPage() {
     }
 
     setPrevSpend(prevResult.data ? prevResult.data.reduce((s: number, h: any) => s + (h.total || 0), 0) : null)
+
+    // Food cost % — fixed trailing-30-day window, independent of the range
+    // selector above. Sales come from daily_sales (Clover sync); spend from
+    // invoice_headers. Needs sql/005_daily_sales.sql applied + a sync run.
+    const t30start = localDate(new Date(Date.now() - 29 * 24 * 3600 * 1000))
+    const t30end = localDate(new Date())
+    const [sales30, spend30] = await Promise.all([
+      supabase.from('daily_sales').select('net_cents').eq('restaurant_id', restaurantId).gte('date', t30start).lte('date', t30end),
+      supabase.from('invoice_headers').select('total').eq('restaurant_id', restaurantId).gte('invoice_date', t30start).lte('invoice_date', t30end),
+    ])
+    const netSales30 = (sales30.data ?? []).reduce((s: number, r: { net_cents?: number | null }) => s + (r.net_cents || 0), 0) / 100
+    const spend30Total = (spend30.data ?? []).reduce((s: number, h: { total?: number | null }) => s + (h.total || 0), 0)
+    setFoodCostPct(netSales30 > 0 ? (spend30Total / netSales30) * 100 : null)
   }
 
   // ---- Presentation-only derived values (no new data) ----
@@ -137,7 +153,7 @@ export default function DashboardPage() {
       )}
 
       {/* KPI CARDS — real data */}
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <div className="rounded-[14px] border border-ink/[0.08] bg-cream-surface p-[22px]">
           <div className="text-[12.5px] tracking-[0.02em] text-ink-muted">Total spend this period</div>
           <div className="mt-2 font-mono text-[30px] font-semibold text-ink">{money(totalSpend)}</div>
@@ -167,6 +183,24 @@ export default function DashboardPage() {
           <div className="mt-2 truncate font-serif text-[28px] text-ink">{topCategory}</div>
           <div className="mt-2 font-mono text-[13px] text-ink-muted">by spend</div>
         </div>
+
+        <Link href="/dashboard/food-cost" className="rounded-[14px] border border-ink/[0.08] bg-cream-surface p-[22px] transition hover:border-terracotta/40">
+          <div className="text-[12.5px] tracking-[0.02em] text-ink-muted">Food cost %</div>
+          {foodCostPct !== null ? (
+            <>
+              {/* >35% is the typical "high" threshold for restaurant food cost */}
+              <div className={`mt-2 font-mono text-[30px] font-semibold ${foodCostPct > 35 ? 'text-terracotta' : 'text-ink'}`}>
+                {foodCostPct.toFixed(1)}%
+              </div>
+              <div className="mt-2 font-mono text-[13px] text-ink-muted">trailing 30d · Clover</div>
+            </>
+          ) : (
+            <>
+              <div className="mt-2 font-mono text-[30px] font-semibold text-ink">—</div>
+              <div className="mt-2 font-mono text-[13px] text-ink-muted">no sales synced yet</div>
+            </>
+          )}
+        </Link>
       </div>
 
       {/* CHART — same query + data, restyled palette */}

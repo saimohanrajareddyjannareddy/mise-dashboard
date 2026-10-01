@@ -27,13 +27,13 @@ const mainNav = [
   { href: '/dashboard', label: 'Home', icon: House, exact: true },
   { href: '/dashboard/price-tracker', label: 'Price Tracker', icon: ChartLine },
   { href: '/dashboard/invoices', label: 'Invoices', icon: FileText },
+  { href: '/dashboard/food-cost', label: 'Food cost %', icon: ChartColumn },
 ]
 // Roadmap items — shown in the nav for discoverability but not yet wired to a
 // route. Click is disabled so they can't break navigation.
 const soonNav = [
   { label: 'Vendors', icon: Building2 },
   { label: 'Alerts', icon: Bell },
-  { label: 'Food cost %', icon: ChartColumn },
 ]
 
 const navBase =
