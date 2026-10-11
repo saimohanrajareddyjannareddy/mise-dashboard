@@ -9,7 +9,8 @@
     "lint": "eslint",
     "seed:clover": "npx tsx scripts/seed-clover-sandbox.ts",
     "sync:clover": "npx tsx scripts/sync-clover-sales.ts",
-    "seed:invoices": "npx tsx scripts/seed-fake-invoices.ts"
+    "seed:invoices": "npx tsx scripts/seed-fake-invoices.ts",
+    "canon": "npx tsx scripts/bulk-canonicalize.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.0",
