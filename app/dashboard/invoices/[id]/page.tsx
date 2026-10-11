@@ -14,6 +14,8 @@ type Line = {
   case_qty: number
   unit_price: number
   total: number
+  canonical_item_id: string | null
+  canonical_items: { name: string; default_unit: string | null } | null
 }
 type Header = { invoice_date: string; invoice_number: string; vendor: string; total: number }
 
@@ -30,12 +32,20 @@ const CATEGORY_COLORS: Record<string, string> = {
 }
 
 function qtyLabel(line: Line): string {
-  const unit = line.purchase_unit
-  if (unit === 'lb' && line.unit_qty) return `${line.unit_qty} lb`
-  if (unit === 'case' && line.case_qty) return `${line.case_qty} case`
-  if (unit === 'each' && line.unit_qty) return `${line.unit_qty} ea`
-  if (line.unit_qty) return `${line.unit_qty}`
-  if (line.case_qty) return `${line.case_qty} case`
+  const unit = (line.purchase_unit || '').toLowerCase()
+  const fallback = (line.canonical_items?.default_unit || '').toLowerCase()
+  const q = line.unit_qty
+  const c = line.case_qty
+  if ((unit === 'lb' || unit === 'lbs') && q) return `${q} lb`
+  if (unit === 'case' && c) return `${c} case`
+  if ((unit === 'each' || unit === 'ea') && q) return `${q} ea`
+  // Any other explicit unit the extractor captured (gal, oz, ct, ...).
+  if (unit && unit !== 'case' && q) return `${q} ${unit}`
+  // No usable unit from extraction: fall back to the canonical item's unit
+  // ("40" + chicken thigh meat -> "40 lb"). Never print a bare number.
+  if (q && fallback) return `${q} ${fallback}`
+  if (q) return `${q}`
+  if (c) return `${c} case`
   return '—'
 }
 
@@ -49,7 +59,9 @@ export default function InvoiceDetailPage() {
   useEffect(() => {
     Promise.all([
       supabase.from('invoice_headers').select('*').eq('id', id).single(),
-      supabase.from('invoice_lines').select('*').eq('header_id', id).order('total', { ascending: false }),
+      supabase.from('invoice_lines')
+        .select('*, canonical_items!canonical_item_id(name, default_unit)')
+        .eq('header_id', id).order('total', { ascending: false }),
     ]).then(([{ data: h }, { data: l }]) => {
       setHeader(h)
       setLines(l || [])
