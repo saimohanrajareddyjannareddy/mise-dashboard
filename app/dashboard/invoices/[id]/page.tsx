@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { ArrowLeft, Printer } from 'lucide-react'
+import { ArrowLeft, Printer, Trash2 } from 'lucide-react'
 
 type Line = {
   id: string
@@ -17,7 +17,7 @@ type Line = {
   canonical_item_id: string | null
   canonical_items: { name: string; default_unit: string | null } | null
 }
-type Header = { invoice_date: string; invoice_number: string; vendor: string; total: number }
+type Header = { restaurant_id: string; invoice_date: string; invoice_number: string; vendor: string; total: number }
 
 const CATEGORY_COLORS: Record<string, string> = {
   Proteins: 'bg-red-100 text-red-700',
@@ -55,6 +55,8 @@ export default function InvoiceDetailPage() {
   const [header, setHeader] = useState<Header | null>(null)
   const [lines, setLines] = useState<Line[]>([])
   const [loading, setLoading] = useState(true)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteNotice, setDeleteNotice] = useState('')
 
   useEffect(() => {
     Promise.all([
@@ -72,6 +74,30 @@ export default function InvoiceDetailPage() {
   if (loading) return <div className="p-8 text-gray-400">Loading...</div>
   if (!header) return <div className="p-8 text-gray-400">Invoice not found.</div>
 
+  // Permanent delete via the delete_invoice RPC (sql/015) — members
+  // have no direct DELETE policy. The invoice_files row is kept as a
+  // tombstone so an email-scanned invoice never re-imports itself.
+  async function handleDelete() {
+    if (!header) return
+    if (!window.confirm('Delete this invoice permanently? Its line items leave your books and totals recompute without it. This cannot be undone.')) return
+    setDeleting(true)
+    setDeleteNotice('')
+    const { error } = await supabase.rpc('delete_invoice', {
+      p_restaurant_id: header.restaurant_id,
+      p_header_id: id,
+    })
+    if (error) {
+      setDeleting(false)
+      setDeleteNotice(
+        error.message.includes('delete_invoice')
+          ? 'Delete needs one database step first: run sql/015_delete_invoice.sql in the Supabase SQL editor, then try again.'
+          : error.message
+      )
+      return
+    }
+    router.push('/dashboard/invoices')
+  }
+
   const regular = lines.filter(l => (l.total || 0) >= 0)
   const credits = lines.filter(l => (l.total || 0) < 0)
   const creditTotal = credits.reduce((s, l) => s + (l.total || 0), 0)
@@ -82,11 +108,23 @@ export default function InvoiceDetailPage() {
         <button onClick={() => router.back()} className="flex items-center gap-2 text-gray-500 hover:text-gray-800 text-sm transition">
           <ArrowLeft size={14} /> Back to Invoices
         </button>
-        <button onClick={() => window.print()}
-          className="flex items-center gap-2 px-4 py-2 bg-white border rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition">
-          <Printer size={14} /> Print / PDF
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => window.print()}
+            className="flex items-center gap-2 px-4 py-2 bg-white border rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition">
+            <Printer size={14} /> Print / PDF
+          </button>
+          <button onClick={handleDelete} disabled={deleting}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-red-200 rounded-lg text-sm text-red-600 hover:bg-red-50 transition disabled:opacity-50">
+            <Trash2 size={14} /> {deleting ? 'Deleting…' : 'Delete'}
+          </button>
+        </div>
       </div>
+
+      {deleteNotice && (
+        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 print:hidden">
+          {deleteNotice}
+        </div>
+      )}
 
       <div className="bg-white rounded-xl border p-6 mb-6 print:border-0 print:p-0 print:mb-4">
         <div className="flex justify-between items-start">
