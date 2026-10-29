@@ -255,7 +255,7 @@ export default function UploadPage() {
   const regular = parsed ? parsed.items.filter(i => (i.total || 0) >= 0) : []
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 mb-1">Upload Invoice</h1>
@@ -410,7 +410,8 @@ export default function UploadPage() {
           })()}
 
           <div className="bg-white rounded-xl border overflow-hidden mb-6">
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <table className="w-full min-w-[620px] text-sm">
               <thead className="bg-gray-50 border-b">
                 <tr className="text-gray-400 text-xs uppercase tracking-wide">
                   <th className="text-left px-4 py-3">Item</th>
@@ -448,6 +449,7 @@ export default function UploadPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
 
           <div className="flex items-center gap-3">

@@ -40,7 +40,8 @@ export default function MostPurchasedPage() {
       <p className="text-gray-500 text-sm mb-6">Items ranked by total spend across all invoices.</p>
 
       <div className="bg-white rounded-xl border overflow-hidden">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <table className="w-full min-w-[600px] text-sm">
           <thead className="bg-gray-50 border-b">
             <tr className="text-gray-500 text-xs uppercase tracking-wide">
               <th className="text-left px-4 py-3">#</th>
@@ -68,6 +69,7 @@ export default function MostPurchasedPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   )

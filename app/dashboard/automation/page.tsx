@@ -236,7 +236,8 @@ export default function AutomationPage() {
         {vendorFreshness.length === 0 ? (
           <Empty>No vendors configured yet.</Empty>
         ) : (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <table className="w-full min-w-[560px] text-sm">
             <thead>
               <tr className="text-gray-400 text-xs border-b">
                 <th className="text-left pb-2">Vendor</th>
@@ -274,6 +275,7 @@ export default function AutomationPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </Card>
 
@@ -281,7 +283,8 @@ export default function AutomationPage() {
         {failures.length === 0 ? (
           <Empty>No failed files. Pipeline is clean.</Empty>
         ) : (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <table className="w-full min-w-[560px] text-sm">
             <thead>
               <tr className="text-gray-400 text-xs border-b">
                 <th className="text-left pb-2">When</th>
@@ -315,6 +318,7 @@ export default function AutomationPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </Card>
     </div>

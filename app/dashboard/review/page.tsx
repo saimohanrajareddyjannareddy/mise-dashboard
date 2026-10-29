@@ -76,7 +76,7 @@ export default function ReviewPage() {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-1 flex items-center gap-2">
           <ClipboardCheck className="text-amber-500" /> Review Queue
@@ -115,7 +115,8 @@ export default function ReviewPage() {
             <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4 text-sm text-red-700">{errorMsg}</div>
           )}
           <div className="bg-white rounded-xl border overflow-hidden">
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <table className="w-full min-w-[640px] text-sm">
               <thead className="bg-gray-50 border-b">
                 <tr className="text-gray-400 text-xs uppercase tracking-wide">
                   <th className="text-left px-4 py-3">Vendor</th>
@@ -158,6 +159,7 @@ export default function ReviewPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         </>
       )}

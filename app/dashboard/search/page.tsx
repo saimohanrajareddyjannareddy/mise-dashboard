@@ -103,7 +103,8 @@ export default function SearchPage() {
         <div className="text-center py-12 text-gray-400">No results found for "{query}"</div>
       ) : results.length > 0 ? (
         <div className="bg-white rounded-xl border overflow-hidden">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <table className="w-full min-w-[600px] text-sm">
             <thead className="bg-gray-50 border-b">
               <tr className="text-gray-500 text-xs uppercase tracking-wide">
                 <th className="text-left px-4 py-3">Date</th>
@@ -129,6 +130,7 @@ export default function SearchPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       ) : null}
     </div>

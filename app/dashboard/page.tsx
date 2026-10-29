@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { useRestaurant } from '@/lib/restaurant'
 import { BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
+import SetupChecklist from '@/components/SetupChecklist'
 
 type CategorySpend = { category: string; total: number }
 type RecentInvoice = { id: string; invoice_date: string; invoice_number: string; vendor: string; total: number }
@@ -151,6 +152,9 @@ export default function DashboardPage() {
             className="rounded-[9px] border border-ink/[0.16] bg-cream-surface px-3 py-2 text-sm text-ink-2 outline-none focus:border-terracotta" />
         </div>
       )}
+
+      {/* First-run setup checklist — renders only while setup is incomplete */}
+      <SetupChecklist />
 
       {/* KPI CARDS — real data */}
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">

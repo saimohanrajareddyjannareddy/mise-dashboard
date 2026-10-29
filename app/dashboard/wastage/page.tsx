@@ -150,7 +150,8 @@ export default function WastagePage() {
         <div className="px-5 py-3 border-b bg-gray-50">
           <h2 className="font-semibold text-gray-700 text-sm">Category Breakdown</h2>
         </div>
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <table className="w-full min-w-[600px] text-sm">
           <thead className="border-b">
             <tr className="text-gray-400 text-xs uppercase tracking-wide">
               <th className="text-left px-5 py-3">Category</th>
@@ -188,6 +189,7 @@ export default function WastagePage() {
             })}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   )
