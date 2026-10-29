@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRestaurant } from '@/lib/restaurant'
 import { CheckCircle, AlertCircle, Link2, Key, AlertTriangle, Trash2, Store, CreditCard, X, Mail } from 'lucide-react'
+import { useActivity } from '@/lib/activity'
 
 type DeletionCounts = {
   invoice_files: number
@@ -14,6 +15,7 @@ type DeletionCounts = {
 
 export default function SettingsPage() {
   const { current, deleteRestaurant } = useRestaurant()
+  const activity = useActivity()
   const restaurantId = current?.id ?? null
   const restaurantName = current?.name ?? ''
   const [merchantId, setMerchantId] = useState('')
@@ -216,13 +218,9 @@ export default function SettingsPage() {
     setMailScanning(true)
     setMailMsg(null)
     try {
-      const resp = await fetch('/api/email/scan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ restaurant_id: restaurantId }),
-      })
-      const json = await resp.json()
-      if (!resp.ok) throw new Error(json.error || 'Scan failed')
+      // Runs through the activity store so the scan shows in the
+      // right-side Activity panel and survives navigation.
+      const json = await activity.startEmailScan()
       setMailLastScan(new Date().toISOString())
       setMailMsg(
         `Scan complete: ${json.imported} invoice${json.imported === 1 ? '' : 's'} imported` +
@@ -249,10 +247,15 @@ export default function SettingsPage() {
     setMailMsg('Email disconnected.')
   }
 
-  async function triggerSync() {    setSyncing(true); setSyncMsg('')
-    const resp = await fetch('/api/clover-sync', { method: 'POST', body: JSON.stringify({ restaurant_id: restaurantId }), headers: { 'Content-Type': 'application/json' } })
-    const json = await resp.json()
-    setSyncMsg(resp.ok ? `Synced ${json.count} sales records.` : json.error || 'Sync failed')
+  async function triggerSync() {
+    setSyncing(true); setSyncMsg('')
+    try {
+      // Via the activity store: visible in the Activity panel too.
+      const json = await activity.startCloverSync()
+      setSyncMsg(`Synced ${json.count} sales records.`)
+    } catch (e: any) {
+      setSyncMsg(e.message || 'Sync failed')
+    }
     setSyncing(false)
   }
 

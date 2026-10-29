@@ -5,6 +5,7 @@ import { useRestaurant } from '@/lib/restaurant'
 import { Upload, FileText, CheckCircle, AlertCircle, Download, X, Store } from 'lucide-react'
 import { reviewFlagsFor } from '@/lib/review-flags'
 import ReceiptScanner from '@/components/ReceiptScanner'
+import { useActivity } from '@/lib/activity'
 
 type ParsedItem = {
   item_name: string
@@ -57,8 +58,11 @@ function downloadCSVTemplate() {
 export default function UploadPage() {
   const { current } = useRestaurant()
   const restaurantId = current?.id ?? null
+  const activity = useActivity()
   const [dragging, setDragging] = useState(false)
-  const [file, setFile] = useState<File | null>(null)
+  const [fileName, setFileName] = useState('')
+  const [watchId, setWatchId] = useState<string | null>(null)
+  const adoptedRef = useRef<string | null>(null)
   const [status, setStatus] = useState<'idle' | 'parsing' | 'done' | 'saving' | 'saved' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
   const [parsed, setParsed] = useState<ParsedInvoice | null>(null)
@@ -94,22 +98,41 @@ export default function UploadPage() {
   }, [restaurantId])
 
   function reset() {
-    setFile(null); setParsed(null); setStatus('idle'); setErrorMsg(''); setSavedId(null); setSavedReview(false)
+    setFileName(''); setWatchId(null); setParsed(null); setStatus('idle'); setErrorMsg(''); setSavedId(null); setSavedReview(false)
   }
 
-  async function parseFile(f: File) {
-    setFile(f); setStatus('parsing'); setParsed(null); setErrorMsg('')
-    const form = new FormData()
-    form.append('file', f)
-    try {
-      const resp = await fetch('/api/parse-invoice', { method: 'POST', body: form })
-      const json = await resp.json()
-      if (!resp.ok) { setStatus('error'); setErrorMsg(json.error || 'Parse failed'); return }
-      setParsed(json); setStatus('done')
-    } catch (e: any) {
-      setStatus('error'); setErrorMsg(e.message || 'Network error')
-    }
+  // Parsing runs in the activity store (dashboard layout), NOT in
+  // this page — so it keeps going if the user navigates away, and
+  // the result is adopted here when it lands.
+  function parseFile(f: File) {
+    setParsed(null); setErrorMsg(''); setSavedId(null); setSavedReview(false)
+    setFileName(f.name)
+    setStatus('parsing')
+    setWatchId(activity.startParse(f))
   }
+
+  // Adopt a finished parse: the one this page started (watchId), or
+  // one that completed while the user was on another page
+  // (activity.pendingParse — picked up when this page is idle).
+  useEffect(() => {
+    const target =
+      (watchId ? activity.entries.find((e) => e.id === watchId) : undefined) ??
+      (status === 'idle' ? activity.pendingParse : null)
+    if (!target || adoptedRef.current === target.id) return
+    if (target.status === 'done' && target.parsed) {
+      adoptedRef.current = target.id
+      activity.consumeParse(target.id)
+      setParsed(target.parsed as ParsedInvoice)
+      setFileName(target.fileName || target.title)
+      setStatus('done')
+      setWatchId(null)
+    } else if (target.status === 'error') {
+      adoptedRef.current = target.id
+      setStatus('error')
+      setErrorMsg(target.detail || 'Parse failed')
+      setWatchId(null)
+    }
+  }, [activity, watchId, status])
 
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault(); setDragging(false)
@@ -149,7 +172,7 @@ export default function UploadPage() {
         .insert({
           restaurant_id: restaurantId,
           drive_file_id: `upload-${crypto.randomUUID()}`,
-          filename: file?.name ?? 'manual-upload',
+          filename: fileName || 'manual-upload',
           file_date: parsed.invoice_date,
           file_total: parsed.total ?? parsed.items.reduce((s, i) => s + (i.total || 0), 0),
           status: 'done',
@@ -280,7 +303,7 @@ export default function UploadPage() {
           </div>
         </div>
         )
-      ) : status === 'idle' || (!file && status !== 'error') ? (
+      ) : status === 'idle' || (!fileName && status !== 'error') ? (
         <div
           onDragOver={e => { e.preventDefault(); setDragging(true) }}
           onDragLeave={() => setDragging(false)}
@@ -314,7 +337,7 @@ export default function UploadPage() {
         <div className="border rounded-xl p-12 text-center">
           <div className="flex items-center justify-center gap-3 text-gray-500">
             <div className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
-            <span>Parsing <span className="font-medium text-gray-700">{file?.name}</span> with AI...</span>
+            <span>Parsing <span className="font-medium text-gray-700">{fileName}</span> with AI...</span>
           </div>
         </div>
       )}

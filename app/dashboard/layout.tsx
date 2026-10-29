@@ -23,6 +23,8 @@ import { useAuth } from '@/lib/auth'
 import { useRestaurant } from '@/lib/restaurant'
 import AddRestaurantButton from '@/components/AddRestaurantButton'
 import ReviewBadge from '@/components/ReviewBadge'
+import { ActivityProvider } from '@/lib/activity'
+import ActivityPanel from '@/components/ActivityPanel'
 
 // Live nav items — real routes only.
 const mainNav = [
@@ -118,6 +120,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const settingsActive = pathname.startsWith('/dashboard/settings')
 
   return (
+    <ActivityProvider>
     <div className="flex min-h-screen overflow-x-hidden bg-cream font-sans text-ink md:overflow-x-visible">
       {/* Mobile drawer overlay — only below md, only when the drawer is open.
           Tapping it closes the drawer. */}
@@ -298,6 +301,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <main className="flex-1 overflow-auto">{children}</main>
         )}
       </div>
+      <ActivityPanel />
     </div>
+    </ActivityProvider>
   )
 }
