@@ -5,7 +5,7 @@ import { useRestaurant } from '@/lib/restaurant'
 import { Upload, FileText, CheckCircle, AlertCircle, Download, X, Store } from 'lucide-react'
 import { reviewFlagsFor } from '@/lib/review-flags'
 import ReceiptScanner from '@/components/ReceiptScanner'
-import { useActivity } from '@/lib/activity'
+import { useActivity, type ActivityEntry } from '@/lib/activity'
 
 type ParsedItem = {
   item_name: string
@@ -63,7 +63,12 @@ export default function UploadPage() {
   const activity = useActivity()
   const [dragging, setDragging] = useState(false)
   const [fileName, setFileName] = useState('')
-  const [watchId, setWatchId] = useState<string | null>(null)
+  // Multi-file batches: every file dropped/selected starts its own
+  // parse in the activity store; the page reviews them one by one in
+  // the order they were added (queue = entry ids, FIFO).
+  const [queue, setQueue] = useState<string[]>([])
+  const queueRef = useRef<string[]>([])
+  const handledRef = useRef<Set<string>>(new Set())
   const adoptedRef = useRef<string | null>(null)
   const [status, setStatus] = useState<'idle' | 'parsing' | 'done' | 'saving' | 'saved' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
@@ -140,28 +145,53 @@ export default function UploadPage() {
   }, [restaurantId])
 
   function reset() {
-    setFileName(''); setWatchId(null); setParsed(null); setVendorEdit(''); setStatus('idle'); setErrorMsg(''); setSavedId(null); setSavedReview(false); memoryAppliedRef.current = ''
+    setFileName(''); setParsed(null); setVendorEdit(''); setStatus('idle'); setErrorMsg(''); setSavedId(null); setSavedReview(false); memoryAppliedRef.current = ''
+    queueRef.current = []; setQueue([]); handledRef.current.clear()
+  }
+
+  // Move past the current preview (saved or dismissed) — the next
+  // finished parse in the batch adopts automatically.
+  function advanceQueue() {
+    if (adoptedRef.current) handledRef.current.add(adoptedRef.current)
+    setParsed(null); setVendorEdit(''); setSavedId(null); setSavedReview(false); setErrorMsg('')
+    memoryAppliedRef.current = ''
+    setStatus('idle')
   }
 
   // Parsing runs in the activity store (dashboard layout), NOT in
   // this page — so it keeps going if the user navigates away, and
-  // the result is adopted here when it lands.
-  function parseFile(f: File) {
-    setParsed(null); setErrorMsg(''); setSavedId(null); setSavedReview(false)
-    setFileName(f.name)
-    setStatus('parsing')
-    setWatchId(activity.startParse(f))
+  // the results are adopted here one by one as they land.
+  function parseFiles(files: File[]) {
+    const fresh = files.filter(Boolean)
+    if (fresh.length === 0) return
+    setErrorMsg('')
+    const ids = fresh.map((f) => activity.startParse(f))
+    queueRef.current = [...queueRef.current, ...ids]
+    setQueue(queueRef.current)
+    if (!parsed) setStatus('parsing')
   }
 
-  // Adopt a finished parse: the one this page started (watchId), or
-  // one that completed while the user was on another page
-  // (activity.pendingParse — picked up when this page is idle).
+  function parseFile(f: File) {
+    parseFiles([f])
+  }
+
+  // Adopt finished parses one at a time, in the order they were
+  // added: this page's queue first (FIFO), then any parse that
+  // finished while the user was on another page (oldest first).
+  // A preview on screen is never yanked away — the next one loads
+  // only after the current is saved or dismissed.
   useEffect(() => {
-    const target =
-      (watchId ? activity.entries.find((e) => e.id === watchId) : undefined) ??
-      (status === 'idle' ? activity.pendingParse : null)
-    if (!target || adoptedRef.current === target.id) return
-    if (target.status === 'done' && target.parsed) {
+    if (parsed || status === 'saving' || status === 'saved') return
+    const isReady = (e: ActivityEntry) =>
+      e.kind === 'parse' && e.status === 'done' && !e.consumed && !!e.parsed
+    const queued = queueRef.current
+      .map((id) => activity.entries.find((e) => e.id === id))
+      .filter((e): e is ActivityEntry => !!e)
+    let target = queued.find(isReady)
+    if (!target) {
+      target = activity.entries.filter(isReady).sort((a, b) => a.startedAt - b.startedAt)[0]
+    }
+    if (target) {
       adoptedRef.current = target.id
       activity.consumeParse(target.id)
       setParsed(target.parsed as ParsedInvoice)
@@ -169,19 +199,28 @@ export default function UploadPage() {
       setVendorEdit(/^unknown/i.test(v) ? '' : v)
       setFileName(target.fileName || target.title)
       setStatus('done')
-      setWatchId(null)
-    } else if (target.status === 'error') {
-      adoptedRef.current = target.id
-      setStatus('error')
-      setErrorMsg(target.detail || 'Parse failed')
-      setWatchId(null)
+      return
     }
-  }, [activity, watchId, status])
+    // Nothing ready: surface the first unhandled queue error, else
+    // reflect the still-running head of the queue.
+    const errored = queued.find((e) => e.status === 'error' && !handledRef.current.has(e.id))
+    if (errored) {
+      handledRef.current.add(errored.id)
+      setStatus('error')
+      setErrorMsg(errored.detail || 'Parse failed')
+      return
+    }
+    const running = queued.find((e) => e.status === 'running')
+    if (running && status !== 'parsing') {
+      setFileName(running.fileName || running.title)
+      setStatus('parsing')
+    }
+  }, [activity, parsed, status])
 
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault(); setDragging(false)
-    const f = e.dataTransfer.files[0]
-    if (f) parseFile(f)
+    parseFiles(Array.from(e.dataTransfer.files))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function saveInvoice() {
@@ -366,6 +405,8 @@ export default function UploadPage() {
   const netTotal = parsed ? parsed.items.reduce((s, i) => s + (i.total || 0), 0) : 0
   const credits = parsed ? parsed.items.filter(i => (i.total || 0) < 0) : []
   const regular = parsed ? parsed.items.filter(i => (i.total || 0) >= 0) : []
+  // Batch files still waiting (queued, parsing, or ready) after the current one.
+  const remainingCount = queue.filter((id) => id !== adoptedRef.current && !handledRef.current.has(id)).length
 
   return (
     <div className="p-4 sm:p-8">
@@ -379,6 +420,43 @@ export default function UploadPage() {
           <Download size={14} /> CSV Template
         </button>
       </div>
+
+      {queue.length > 1 && status !== 'saved' && (
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Batch</span>
+          {queue.map((id) => {
+            const e = activity.entries.find((x) => x.id === id)
+            if (!e) return null
+            const isCurrent = adoptedRef.current === id && !!parsed
+            const isHandled = handledRef.current.has(id)
+            return (
+              <span
+                key={id}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${
+                  isCurrent
+                    ? 'border-amber-400 bg-amber-50 font-medium text-amber-800'
+                    : isHandled
+                      ? 'border-green-200 bg-green-50 text-green-700'
+                      : e.status === 'error'
+                        ? 'border-red-200 bg-red-50 text-red-600'
+                        : 'border-gray-200 bg-white text-gray-500'
+                }`}
+              >
+                {e.status === 'running' ? (
+                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-amber-500 border-t-transparent" />
+                ) : isHandled ? (
+                  '✓'
+                ) : e.status === 'error' ? (
+                  '!'
+                ) : (
+                  '•'
+                )}
+                {e.fileName || e.title}
+              </span>
+            )
+          })}
+        </div>
+      )}
 
       {status === 'saved' && savedId ? (
         savedReview ? (
@@ -399,6 +477,12 @@ export default function UploadPage() {
                   className="px-4 py-2 bg-white border border-amber-300 text-amber-700 rounded-lg text-sm hover:bg-amber-50 transition">
                   View Invoice
                 </a>
+                {remainingCount > 0 && (
+                  <button onClick={advanceQueue}
+                    className="px-4 py-2 bg-amber-500 text-white rounded-lg text-sm hover:bg-amber-600 transition">
+                    Review Next Invoice ({remainingCount} left)
+                  </button>
+                )}
                 <button onClick={reset}
                   className="px-4 py-2 bg-white border border-amber-300 text-amber-700 rounded-lg text-sm hover:bg-amber-50 transition">
                   Upload Another
@@ -417,6 +501,12 @@ export default function UploadPage() {
                 className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition">
                 View Invoice
               </a>
+              {remainingCount > 0 && (
+                <button onClick={advanceQueue}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition">
+                  Review Next Invoice ({remainingCount} left)
+                </button>
+              )}
               <button onClick={reset}
                 className="px-4 py-2 bg-white border border-green-300 text-green-700 rounded-lg text-sm hover:bg-green-50 transition">
                 Upload Another
@@ -432,13 +522,13 @@ export default function UploadPage() {
           onDrop={onDrop}
           onClick={() => inputRef.current?.click()}
           className={`border-2 border-dashed rounded-xl p-16 text-center cursor-pointer transition ${dragging ? 'border-amber-500 bg-amber-50' : 'border-gray-200 hover:border-amber-400 hover:bg-gray-50'}`}>
-          <input ref={inputRef} type="file"
+          <input ref={inputRef} type="file" multiple
             accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.xlsx,.xls,.csv"
             className="hidden"
-            onChange={e => { const f = e.target.files?.[0]; if (f) parseFile(f) }} />
+            onChange={e => { parseFiles(Array.from(e.target.files || [])); e.target.value = '' }} />
           <Upload size={40} className={`mx-auto mb-4 ${dragging ? 'text-amber-500' : 'text-gray-300'}`} />
-          <div className="text-gray-700 font-medium mb-1">Drop invoice here or click to browse</div>
-          <div className="text-gray-400 text-sm">PDF, PNG, JPG, Excel, CSV supported</div>
+          <div className="text-gray-700 font-medium mb-1">Drop invoices here or click to browse</div>
+          <div className="text-gray-400 text-sm">PDF, PNG, JPG, Excel, CSV — select as many as you like; you will review them one by one</div>
           <button
             onClick={e => { e.stopPropagation(); setScannerOpen(true) }}
             className="mt-5 px-4 py-2 bg-gray-900 text-white rounded-lg text-sm hover:bg-gray-800 transition"
@@ -629,7 +719,7 @@ export default function UploadPage() {
               className="px-6 py-2.5 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600 disabled:opacity-50 transition">
               {status === 'saving' ? 'Saving...' : 'Save to Records'}
             </button>
-            <button onClick={reset}
+            <button onClick={advanceQueue}
               className="px-4 py-2.5 bg-white border rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition">
               Cancel
             </button>
