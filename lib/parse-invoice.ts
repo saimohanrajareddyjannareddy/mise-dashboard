@@ -53,7 +53,10 @@ Rules:
 - purchase_unit: "lb" if sold by weight, "case" if sold as a case of multiple units, "each" for everything else
 - Skip non-product rows: taxes, fees, subtotals, payment rows, tips
 - display_name: expand abbreviations (SHR→Shrimp, CHIX→Chicken, BTR→Butter, BNLS→Boneless, BRST→Breast, THGH→Thigh, PROD→remove, FZ→Frozen, GARLC→Garlic, HAL→Halal, etc.)
-- Credits and returns should have negative total values
+- Negative lines are NOT all the same — read them carefully:
+  - DISCOUNT: a line with quantity 0 (or no quantity) and a negative amount naming an item that is also purchased on this invoice is a price discount on that item (Restaurant Depot prints e.g. "0  25  -$19.40", meaning 25% off the item above). Do NOT emit it as its own item — subtract it from the matching item's total and recompute that item's unit_price; its quantity does not change.
+  - RETURN: a line with a NEGATIVE quantity is goods the buyer gave back. Net it against the matching purchased item: reduce that item's quantity and total by the returned amounts, and if the net quantity reaches 0, omit the item entirely. Emit a standalone negative item ONLY when the returned item was not purchased on this same invoice.
+  - "Previous Balance" and similar account-balance rows are not products and are not part of this invoice's subtotal — skip them entirely.
 - If quantity is missing assume 1
 - All numbers as floats, no currency symbols`
 
@@ -134,6 +137,30 @@ export async function parseInvoiceBytes(
     if (price && !total) item.total = Math.round(price * qty * 100) / 100
     else if (total && !price)
       item.unit_price = Math.round((total / qty) * 10000) / 10000
+  }
+
+  // Discount backstop: a negative line with quantity 0 naming a
+  // purchased item is a register discount (see the prompt rules) —
+  // fold it into that item even if the model emitted it separately.
+  // Genuine returns carry a negative quantity and are left alone.
+  if (parsed.items) {
+    const norm = (s: string) => (s || '').trim().toLowerCase().replace(/\s+/g, ' ')
+    const kept: typeof parsed.items = []
+    for (const item of parsed.items) {
+      if ((item.total || 0) < 0 && !item.quantity) {
+        const parent = kept.find(
+          (k) => (k.total || 0) > 0 && norm(k.item_name) === norm(item.item_name)
+        )
+        if (parent) {
+          parent.total = Math.round(((parent.total || 0) + item.total) * 100) / 100
+          const q = parent.quantity || 1
+          parent.unit_price = Math.round((parent.total / q) * 10000) / 10000
+          continue
+        }
+      }
+      kept.push(item)
+    }
+    parsed.items = kept
   }
 
   return parsed
