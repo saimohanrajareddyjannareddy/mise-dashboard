@@ -18,6 +18,7 @@ import {
   Check,
   Menu,
   ClipboardCheck,
+  Sparkles,
 } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
 import { useRestaurant } from '@/lib/restaurant'
@@ -25,6 +26,10 @@ import AddRestaurantButton from '@/components/AddRestaurantButton'
 import ReviewBadge from '@/components/ReviewBadge'
 import { ActivityProvider } from '@/lib/activity'
 import ActivityPanel from '@/components/ActivityPanel'
+import AssistantPanel from '@/components/AssistantPanel'
+import GlobalSearch from '@/components/GlobalSearch'
+import { supabase } from '@/lib/supabase'
+import { fetchPriceAlerts } from '@/lib/alerts'
 
 // Live nav items — real routes only.
 const mainNav = [
@@ -68,6 +73,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     setDrawerOpen(false)
   }, [pathname])
+
+  // Top-bar utilities: global search overlay + the Ask-the-agent panel.
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [askOpen, setAskOpen] = useState(false)
+
+  // Live price-alert count for the bell badge (moves ≥5%).
+  const [alertCount, setAlertCount] = useState(0)
+  useEffect(() => {
+    if (!current?.id) return
+    let cancelled = false
+    fetchPriceAlerts(supabase, current.id, 5)
+      .then((a) => {
+        if (!cancelled) setAlertCount(a.length)
+      })
+      .catch(() => {
+        if (!cancelled) setAlertCount(0)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [current?.id, pathname])
 
   // Custom restaurant-switcher dropdown (replaces an unstyleable native <select>).
   const [switcherOpen, setSwitcherOpen] = useState(false)
@@ -255,16 +281,29 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <button
               type="button"
               aria-label="Search"
+              onClick={() => setSearchOpen(true)}
               className="flex h-10 w-10 items-center justify-center rounded-[9px] border border-ink/[0.14] bg-cream-surface text-ink-2 transition hover:bg-cream-surface-alt"
             >
               <Search size={18} />
             </button>
-            <button
-              type="button"
-              aria-label="Notifications"
-              className="flex h-10 w-10 items-center justify-center rounded-[9px] border border-ink/[0.14] bg-cream-surface text-ink-2 transition hover:bg-cream-surface-alt"
+            <Link
+              href="/dashboard/alerts"
+              aria-label="Price alerts"
+              className="relative flex h-10 w-10 items-center justify-center rounded-[9px] border border-ink/[0.14] bg-cream-surface text-ink-2 transition hover:bg-cream-surface-alt"
             >
               <Bell size={18} />
+              {alertCount > 0 && (
+                <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-terracotta px-1 text-[10px] font-bold text-white">
+                  {alertCount}
+                </span>
+              )}
+            </Link>
+            <button
+              type="button"
+              onClick={() => setAskOpen(true)}
+              className="flex items-center gap-2 rounded-[10px] border border-ink/[0.14] bg-cream-surface px-3.5 py-2.5 text-[14px] font-semibold text-ink-2 transition hover:bg-cream-surface-alt"
+            >
+              <Sparkles size={16} className="text-terracotta" /><span className="hidden md:inline">Ask</span>
             </button>
             <Link
               href="/dashboard/upload"
@@ -302,6 +341,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         )}
       </div>
       <ActivityPanel />
+      <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
+      <AssistantPanel open={askOpen} onClose={() => setAskOpen(false)} />
     </div>
     </ActivityProvider>
   )
