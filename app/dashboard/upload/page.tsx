@@ -298,7 +298,7 @@ export default function UploadPage() {
             onClick={e => { e.stopPropagation(); setScannerOpen(true) }}
             className="mt-5 px-4 py-2 bg-gray-900 text-white rounded-lg text-sm hover:bg-gray-800 transition"
           >
-            Scan with camera — it snaps the perfect shot itself
+            Scan with camera — it finds the perfect shot, you tap to snap
           </button>
         </div>
       ) : null}
