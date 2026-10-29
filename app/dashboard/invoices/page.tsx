@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useRestaurant } from '@/lib/restaurant'
 import { Search, Download } from 'lucide-react'
 
-type Invoice = { id: string; invoice_date: string; invoice_number: string; vendor: string; total: number }
+type Invoice = { id: string; invoice_date: string; invoice_number: string; vendor: string; total: number; review_status?: string }
 
 const ALL = '__all__'
 
@@ -32,7 +32,9 @@ export default function InvoicesPage() {
     if (!restaurantId) return
     supabase.from('invoice_headers').select('*').eq('restaurant_id', restaurantId)
       .order('invoice_date', { ascending: false }).then(({ data }) => {
-        setInvoices(data || [])
+        // Quarantined invoices (needs_review) live in the Review
+        // queue until approved — they don't belong in this list.
+        setInvoices((data || []).filter((inv: Invoice) => inv.review_status !== 'needs_review'))
         setLoading(false)
       })
   }, [restaurantId])

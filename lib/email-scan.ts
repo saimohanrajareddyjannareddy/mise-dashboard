@@ -47,6 +47,24 @@ const GENERIC_DOMAINS = new Set([
   'msn.com',
 ])
 
+// Senders whose "invoices" are the restaurant's OWN bills, never
+// supplier invoices. A connected mailbox is usually a mixed
+// personal/business inbox (Anthropic, Apple, H&M receipts...) and
+// the subject-keyword filter alone happily imports those, so known
+// consumer/billing senders are skipped before parsing. Starter list.
+const NON_SUPPLIER_DOMAINS = new Set([
+  'anthropic.com',
+  'openai.com',
+  'apple.com',
+  'hm.com',
+  'paypal.com',
+  'stripe.com',
+  'adobe.com',
+  'microsoft.com',
+  'intuit.com',
+  'google.com',
+])
+
 function slugify(name: string): string {
   return (
     name
@@ -200,6 +218,10 @@ export async function scanRestaurantMailbox(
           : senderEmail.includes(p.pattern)
       )
       const looksLikeInvoice = /invoice|receipt|statement|bill/i.test(msg.subject)
+      if (NON_SUPPLIER_DOMAINS.has(senderDomain)) {
+        result.skipped++
+        continue
+      }
 
       for (const att of msg.attachments) {
         if (!PARSEABLE(att.mimeType, att.filename)) {
@@ -250,6 +272,15 @@ export async function scanRestaurantMailbox(
           continue
         }
 
+        // Supplier-likeness: a real supplier invoice has at least
+        // one line the categorizer recognizes (food, packaging...).
+        // A personal bill (software, clothing, utilities) parses to
+        // all-"Other" lines — those get quarantined below instead
+        // of being registered as suppliers.
+        const supplierLike =
+          parsed.items.length > 0 &&
+          parsed.items.some((i) => i.category && i.category !== 'Other')
+
         // Vendor: the sender match beats whatever the AI read.
         let vendorId = ''
         let vendorName = (parsed.vendor || 'Unknown').trim()
@@ -257,7 +288,7 @@ export async function scanRestaurantMailbox(
           vendorId = matchedPattern.vendorId
           vendorName = vendorNameById.get(vendorId) ?? vendorName
           await ensureVendorLink(vendorId)
-        } else if (vendorName && vendorName.toLowerCase() !== 'unknown') {
+        } else if (vendorName && vendorName.toLowerCase() !== 'unknown' && supplierLike) {
           const reg = await registerVendor(vendorName, parsed.vendor, senderDomain || null)
           vendorId = reg.id
           vendorName = reg.name
@@ -287,6 +318,9 @@ export async function scanRestaurantMailbox(
         }
 
         const flags = reviewFlagsFor(parsed)
+        if (!matchedPattern && !supplierLike) {
+          flags.push('Unrecognized sender — confirm this is a supplier invoice')
+        }
         const headerPayload: Record<string, unknown> = {
           restaurant_id: restaurantId,
           file_id: fileRow.id,
