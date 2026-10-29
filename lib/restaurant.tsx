@@ -81,7 +81,24 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
         return
       }
       setLoading(true)
-      const restaurants = await refresh()
+      let restaurants = await refresh()
+      // First-run provisioning: a self-serve signup stores the restaurant
+      // name in user metadata. If this account has no restaurants yet,
+      // create it automatically so signup lands on a working dashboard.
+      if (restaurants.length === 0) {
+        const pendingName = session.user.user_metadata?.restaurant_name
+        if (typeof pendingName === 'string' && pendingName.trim()) {
+          const { error: rpcError } = await supabase.rpc(
+            'create_my_restaurant',
+            { p_name: pendingName.trim() }
+          )
+          if (!rpcError) {
+            restaurants = await refresh()
+          } else {
+            console.error('auto-create restaurant', rpcError)
+          }
+        }
+      }
       if (cancelled) return
       const saved =
         typeof window !== 'undefined' ? localStorage.getItem(LS_KEY) : null

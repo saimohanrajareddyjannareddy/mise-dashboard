@@ -107,7 +107,7 @@ export default function LoginPage() {
 
           <p className="mt-[30px] text-center text-[14px] text-ink-3">
             New to mise?{' '}
-            <Link href="#" className="font-semibold text-forest hover:text-terracotta">
+            <Link href="/signup" className="font-semibold text-forest hover:text-terracotta">
               Create an account
             </Link>
           </p>
