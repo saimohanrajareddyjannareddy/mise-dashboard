@@ -31,12 +31,8 @@ const mainNav = [
   { href: '/dashboard/invoices', label: 'Invoices', icon: FileText },
   { href: '/dashboard/review', label: 'Review', icon: ClipboardCheck, badge: 'review' },
   { href: '/dashboard/food-cost', label: 'Food cost %', icon: ChartColumn },
-]
-// Roadmap items — shown in the nav for discoverability but not yet wired to a
-// route. Click is disabled so they can't break navigation.
-const soonNav = [
-  { label: 'Vendors', icon: Building2 },
-  { label: 'Alerts', icon: Bell },
+  { href: '/dashboard/vendors', label: 'Vendors', icon: Building2 },
+  { href: '/dashboard/alerts', label: 'Alerts', icon: Bell },
 ]
 
 const navBase =
@@ -207,20 +203,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </Link>
             )
           })}
-          {soonNav.map(({ label, icon: Icon }) => (
-            <div
-              key={label}
-              className={`${navBase} cursor-default select-none border-transparent text-forest-light/60`}
-              aria-disabled="true"
-              title="Coming soon"
-            >
-              <Icon size={18} />
-              <span className="flex-1">{label}</span>
-              <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-forest-light">
-                SOON
-              </span>
-            </div>
-          ))}
         </nav>
 
         {/* Bottom group */}

@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useRestaurant } from '@/lib/restaurant'
 import { BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import SetupChecklist from '@/components/SetupChecklist'
+import { fetchPriceAlerts, type PriceAlert } from '@/lib/alerts'
 
 type CategorySpend = { category: string; total: number }
 type RecentInvoice = { id: string; invoice_date: string; invoice_number: string; vendor: string; total: number }
@@ -21,6 +22,7 @@ export default function DashboardPage() {
   const [topCategory, setTopCategory] = useState('-')
   const [categoryData, setCategoryData] = useState<CategorySpend[]>([])
   const [recentInvoices, setRecentInvoices] = useState<RecentInvoice[]>([])
+  const [priceAlerts, setPriceAlerts] = useState<PriceAlert[]>([])
   // Food cost % = invoice spend ÷ Clover net sales, fixed trailing-30-day window.
   // null = no sales synced yet (or zero sales).
   const [foodCostPct, setFoodCostPct] = useState<number | null>(null)
@@ -113,6 +115,14 @@ export default function DashboardPage() {
     const netSales30 = (sales30.data ?? []).reduce((s: number, r: { net_cents?: number | null }) => s + (r.net_cents || 0), 0) / 100
     const spend30Total = (spend30.data ?? []).reduce((s: number, h: { total?: number | null }) => s + (h.total || 0), 0)
     setFoodCostPct(netSales30 > 0 ? (spend30Total / netSales30) * 100 : null)
+
+    // Price-move alerts for the home card (top 3 shown, full list on
+    // the Alerts page).
+    if (restaurantId) {
+      fetchPriceAlerts(supabase, restaurantId)
+        .then(setPriceAlerts)
+        .catch(() => setPriceAlerts([]))
+    }
   }
 
   // ---- Presentation-only derived values (no new data) ----
@@ -294,11 +304,37 @@ export default function DashboardPage() {
         </div>
 
         <div className="flex flex-col rounded-[14px] border border-ink/[0.08] bg-cream-surface p-6">
-          <h2 className="mb-4 font-serif text-[22px] text-ink">Active alerts</h2>
-          <div className="flex flex-1 flex-col items-center justify-center py-10 text-center">
-            <div className="text-[15px] font-semibold text-ink">No active alerts</div>
-            <div className="mt-1 text-[13px] text-ink-muted">Coming soon</div>
+          <div className="mb-4 flex items-baseline justify-between">
+            <h2 className="font-serif text-[22px] text-ink">Active alerts</h2>
+            {priceAlerts.length > 0 && (
+              <Link href="/dashboard/alerts" className="text-[13px] font-medium text-terracotta hover:underline">
+                View all
+              </Link>
+            )}
           </div>
+          {priceAlerts.length === 0 ? (
+            <div className="flex flex-1 flex-col items-center justify-center py-10 text-center">
+              <div className="text-[15px] font-semibold text-ink">No active alerts</div>
+              <div className="mt-1 text-[13px] text-ink-muted">Supplier prices are stable — nothing moved 5% or more.</div>
+            </div>
+          ) : (
+            <div>
+              {priceAlerts.slice(0, 3).map(a => (
+                <div
+                  key={a.item_name}
+                  className="grid grid-cols-[1fr_auto] items-center border-b border-ink/[0.05] py-3 text-[14px] last:border-0"
+                >
+                  <span className="min-w-0 pr-3">
+                    <span className="block truncate text-ink">{a.display_name}</span>
+                    <span className="block truncate font-mono text-[11px] text-ink-muted">{a.vendor} · {a.date}</span>
+                  </span>
+                  <span className={`text-right font-mono ${a.change > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    {a.change > 0 ? '+' : ''}{a.change.toFixed(1)}%
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
