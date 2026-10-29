@@ -25,34 +25,41 @@ export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get('code')
   const state = req.nextUrl.searchParams.get('state')
   const cookie = req.cookies.get('clover_oauth_state')?.value
-  if (!code || !state || !cookie) return back('failed')
+  // Distinct result codes per failure point — the generic 'failed'
+  // hid WHERE the flow broke (cookie? state? the token exchange?),
+  // which made remote diagnosis a guessing game.
+  if (!code) return back('no_code')
+  if (!state) return back('no_state')
+  if (!cookie) return back('cookie_missing')
 
   const [expectedState, restaurantId] = cookie.split('.')
   if (!expectedState || state !== expectedState || !restaurantId) {
-    return back('failed')
+    return back('state_mismatch')
   }
 
-  // Exchange the code for an access token.
+  // Exchange the code for an access token. Clover's token endpoint
+  // takes form-encoded fields (per Clover's OAuth docs) — a JSON
+  // body is ignored there, which reads as a failed exchange.
   let accessToken: string | undefined
   let merchantId: string | undefined
   try {
     const resp = await fetch(`${cloverOauthHost()}/oauth/token`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        client_id: process.env.CLOVER_APP_ID,
-        client_secret: process.env.CLOVER_APP_SECRET,
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: process.env.CLOVER_APP_ID!,
+        client_secret: process.env.CLOVER_APP_SECRET!,
         code,
       }),
     })
-    if (!resp.ok) return back('failed')
+    if (!resp.ok) return back(`exchange_${resp.status}`)
     const body = await resp.json()
     accessToken = body.access_token
     merchantId = body.merchant_id
   } catch {
-    return back('failed')
+    return back('exchange_network')
   }
-  if (!accessToken || !merchantId) return back('failed')
+  if (!accessToken || !merchantId) return back('exchange_no_token')
 
   if (!process.env.SUPABASE_SERVICE_KEY) return back('failed')
   const sb = createClient(
@@ -82,7 +89,7 @@ export async function GET(req: NextRequest) {
   if (error) {
     // sql/012 not run yet — the encrypted-token columns don't exist.
     if (error.message.includes('clover_token_enc')) return back('migration_needed')
-    return back('failed')
+    return back('db_error')
   }
 
   return back('connected')

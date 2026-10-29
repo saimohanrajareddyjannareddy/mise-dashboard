@@ -114,8 +114,20 @@ export default function SettingsPage() {
         no_encryption_key: 'The server is missing its token encryption key (TOKEN_ENCRYPTION_KEY). Set it, then connect again.',
         failed: "The Clover connection didn't complete. Try again.",
         missing_restaurant: "The Clover connection didn't complete. Try again.",
+        no_code: 'Clover sent you back without an authorization code (step: code). Try again — and mention code "no_code" if it repeats.',
+        no_state: 'Clover sent you back without the state value (step: state). Try again — and mention code "no_state" if it repeats.',
+        cookie_missing: 'The connection cookie was lost on the way back from Clover (step: cookie). Try again in the same browser tab — and mention code "cookie_missing" if it repeats.',
+        state_mismatch: 'The connection state did not match (step: state check) — usually a stale tab. Close extra InvoiceIQ tabs and try again; mention code "state_mismatch" if it repeats.',
+        exchange_no_token: 'Clover answered the token exchange without a token (step: exchange). Mention code "exchange_no_token" if it repeats.',
+        exchange_network: 'The token exchange with Clover could not be reached (step: exchange). Try again; mention code "exchange_network" if it repeats.',
+        db_error: 'Your token arrived but saving it failed (step: save). Mention code "db_error" if it repeats.',
       }
-      setCloverBanner(messages[result] ?? null)
+      setCloverBanner(
+        messages[result] ??
+          (result.startsWith('exchange_')
+            ? `Clover rejected the token exchange (step: exchange, status ${result.replace('exchange_', '')}). Mention code "${result}" if it repeats.`
+            : `The Clover connection didn't complete (code: ${result}). Mention the code if it repeats.`)
+      )
     }
   }, [])
 
