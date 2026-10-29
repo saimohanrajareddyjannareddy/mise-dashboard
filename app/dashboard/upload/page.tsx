@@ -66,6 +66,10 @@ export default function UploadPage() {
   const [status, setStatus] = useState<'idle' | 'parsing' | 'done' | 'saving' | 'saved' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
   const [parsed, setParsed] = useState<ParsedInvoice | null>(null)
+  // Supplier name, editable in the preview: handwritten slips often
+  // have no supplier printed on them, so the owner types it. Empty =
+  // fall back to whatever the parser read.
+  const [vendorEdit, setVendorEdit] = useState('')
   const [savedId, setSavedId] = useState<string | null>(null)
   const [savedReview, setSavedReview] = useState(false)
   // Known supplier spellings for this restaurant: catalog display names
@@ -98,7 +102,7 @@ export default function UploadPage() {
   }, [restaurantId])
 
   function reset() {
-    setFileName(''); setWatchId(null); setParsed(null); setStatus('idle'); setErrorMsg(''); setSavedId(null); setSavedReview(false)
+    setFileName(''); setWatchId(null); setParsed(null); setVendorEdit(''); setStatus('idle'); setErrorMsg(''); setSavedId(null); setSavedReview(false)
   }
 
   // Parsing runs in the activity store (dashboard layout), NOT in
@@ -123,6 +127,8 @@ export default function UploadPage() {
       adoptedRef.current = target.id
       activity.consumeParse(target.id)
       setParsed(target.parsed as ParsedInvoice)
+      const v = ((target.parsed as ParsedInvoice).vendor || '').trim()
+      setVendorEdit(/^unknown/i.test(v) ? '' : v)
       setFileName(target.fileName || target.title)
       setStatus('done')
       setWatchId(null)
@@ -149,7 +155,12 @@ export default function UploadPage() {
       // from sql/011 — matches an existing vendor or creates a
       // restaurant-scoped one, links it, and remembers this spelling).
       // Any failure (e.g. 011 not run yet) just skips the linking.
-      let vendorName = (parsed.vendor || 'Unknown').trim().replace(/\s+/g, ' ')
+      // The preview's editable supplier field wins over the parsed
+      // name; an "Unknown..." parser output counts as no name.
+      const rawVendor = (vendorEdit.trim() || parsed.vendor || '').trim()
+      let vendorName = /^unknown/i.test(rawVendor) || !rawVendor
+        ? 'Unknown'
+        : rawVendor.replace(/\s+/g, ' ')
       let vendorId: string | null = null
       if (vendorName && vendorName.toLowerCase() !== 'unknown') {
         vendorName = vendorCanon.get(normKey(vendorName)) ?? vendorName
@@ -186,7 +197,7 @@ export default function UploadPage() {
 
       // Reconciliation check: extractions that don't add up go to the
       // review queue instead of silently landing in the books.
-      const flags = reviewFlagsFor(parsed)
+      const flags = reviewFlagsFor({ ...parsed, vendor: vendorName })
       const headerPayload: Record<string, unknown> = {
         restaurant_id: restaurantId,
         file_id: fileRow.id,
@@ -359,8 +370,13 @@ export default function UploadPage() {
             <div className="flex items-start justify-between">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <FileText size={16} className="text-amber-500" />
-                  <span className="font-semibold text-gray-800">{parsed.vendor || 'Unknown Vendor'}</span>
+                  <FileText size={16} className="text-amber-500 shrink-0" />
+                  <input
+                    value={vendorEdit}
+                    onChange={e => setVendorEdit(e.target.value)}
+                    placeholder={parsed.vendor && !/^unknown/i.test(parsed.vendor.trim()) ? parsed.vendor : 'Type the supplier name…'}
+                    className="font-semibold text-gray-800 border border-gray-200 rounded-md px-2 py-1 hover:border-gray-300 focus:border-amber-400 focus:outline-none bg-white min-w-[240px]"
+                  />
                 </div>
                 <div className="text-sm text-gray-500">
                   {parsed.invoice_date && <span>{parsed.invoice_date} · </span>}
@@ -378,8 +394,8 @@ export default function UploadPage() {
           </div>
 
           {(() => {
-            const raw = (parsed.vendor || '').trim().replace(/\s+/g, ' ')
-            if (!raw || raw.toLowerCase() === 'unknown') return null
+            const raw = (vendorEdit.trim() || parsed.vendor || '').trim().replace(/\s+/g, ' ')
+            if (!raw || /^unknown/i.test(raw)) return null
             if (vendorCanon.has(normKey(raw))) return null
             return (
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 flex items-start gap-3">
@@ -395,7 +411,7 @@ export default function UploadPage() {
           })()}
 
           {(() => {
-            const flags = reviewFlagsFor(parsed)
+            const flags = reviewFlagsFor({ ...parsed, vendor: vendorEdit.trim() || parsed.vendor })
             if (flags.length === 0) return null
             return (
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 flex items-start gap-3">
