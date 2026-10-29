@@ -94,11 +94,17 @@ export const cloverAdapter: PosAdapter<CloverCreds> = {
 }
 
 /**
- * Daily sales aggregates for the same order window — the food-cost
- * page, Home KPIs and the assistant read daily_sales, NOT pos_sales.
- * Uses the reference math (computeDailySales in lib/clover.ts:
- * net = gross − discounts − refunds, tax excluded) so the in-app
- * sync and the old sync script can never disagree.
+ * Sales aggregates for the same order window: daily totals (the
+ * food-cost page, Home KPIs and the assistant read daily_sales, NOT
+ * pos_sales) plus per-day breakdowns by channel (the order's Clover
+ * order type: Dine In / To Go / Delivery / ...) and by tender
+ * (Cash / Credit Card / ...).
+ *
+ * Math is the reference computeDailySales (lib/clover.ts:
+ * net = gross \u2212 discounts \u2212 refunds, tax excluded), applied per
+ * order so each order's net can be attributed to its channel and
+ * allocated across its payments pro-rata by amount \u2014 the tender
+ * rows for a day therefore sum to that day's net.
  *
  * Orders are bucketed by createdTime (server time) so the
  * aggregates always agree with pos_sales' sale_date. Real POS
@@ -106,10 +112,33 @@ export const cloverAdapter: PosAdapter<CloverCreds> = {
  * orders set clientCreatedTime arbitrarily, which would scatter
  * the aggregates onto dates nothing else recognizes.
  */
-export async function fetchCloverDailySales(
+export interface SalesBreakdownRow {
+  date: string
+  dimension: 'order_type' | 'tender'
+  label: string
+  netCents: number
+  orderCount: number
+}
+
+export interface CloverSalesAggregates {
+  daily: DailySales[]
+  breakdowns: SalesBreakdownRow[]
+}
+
+interface RichPayment {
+  amount?: number
+  result?: string
+  tender?: { id?: string }
+}
+interface RichOrder {
+  orderType?: { id?: string; label?: string }
+  payments?: { elements?: RichPayment[] }
+}
+
+export async function fetchCloverSalesAggregates(
   creds: CloverCreds,
   sinceTs: number
-): Promise<DailySales[]> {
+): Promise<CloverSalesAggregates> {
   if (!creds.clover_merchant_id || !creds.clover_api_key) {
     throw new Error('Clover credentials missing')
   }
@@ -135,16 +164,18 @@ export async function fetchCloverDailySales(
   let lastError: Error | null = null
   // Clover gates each expandable field behind an app permission and
   // 403s the WHOLE call ("Invalid permissions for expandable
-  // fields") when one is missing — with no hint which. Walk down
+  // fields") when one is missing \u2014 with no hint which. Walk down
   // from the full set to bare lineItems (which the pos_sales fetch
-  // already proves this token can read): discounts/refunds then
-  // read as zero for that sync instead of failing it outright.
-  // (payments was in the old script's fetch but the daily math
-  // never uses it, so it isn't requested at all.)
+  // already proves this token can read): refunds drop first, then
+  // the breakdown fields (orderType/payments), then discounts. A
+  // lower rung degrades that slice (refunds read as zero, channel
+  // reads 'Unspecified', tender rows skipped) instead of failing
+  // the whole sync.
   const EXPANSIONS = [
+    'lineItems,discounts,refunds,orderType,payments',
+    'lineItems,discounts,orderType,payments',
     'lineItems,discounts,refunds',
     'lineItems,discounts',
-    'lineItems,refunds',
     'lineItems',
   ]
   for (const expand of EXPANSIONS) {
@@ -156,7 +187,89 @@ export async function fetchCloverDailySales(
     }
   }
   if (!orders) throw lastError ?? new Error('Clover orders fetch failed')
-  return computeDailySales(
-    orders.map((o) => ({ ...o, clientCreatedTime: o.createdTime }))
-  )
+
+  const normalized = orders.map((o) => ({ ...o, clientCreatedTime: o.createdTime }))
+  const daily = computeDailySales(normalized)
+
+  // Tender id \u2192 label, for the tender breakdown. Best-effort: if the
+  // tenders list can't be read, the tender dimension is skipped.
+  let tenderLabels: Map<string, string> | null = null
+  try {
+    const resp = await fetch(
+      `${apiHost}/v3/merchants/${creds.clover_merchant_id}/tenders?limit=100`,
+      { headers: { Authorization: authHeader, Accept: 'application/json' } }
+    )
+    if (resp.ok) {
+      const body = (await resp.json()) as {
+        elements?: Array<{ id?: string; label?: string }>
+      }
+      tenderLabels = new Map()
+      for (const t of body.elements ?? []) {
+        if (t.id) tenderLabels.set(t.id, t.label ?? 'Other')
+      }
+    }
+  } catch {
+    tenderLabels = null
+  }
+
+  const byKey = new Map<string, SalesBreakdownRow>()
+  const add = (
+    date: string,
+    dimension: 'order_type' | 'tender',
+    label: string,
+    netCents: number
+  ) => {
+    const key = `${date}|${dimension}|${label}`
+    const row = byKey.get(key) ?? { date, dimension, label, netCents: 0, orderCount: 0 }
+    row.netCents += netCents
+    row.orderCount += 1
+    byKey.set(key, row)
+  }
+
+  for (const order of normalized) {
+    const day = computeDailySales([order])[0]
+    if (!day) continue
+    const rich = order as unknown as RichOrder
+
+    add(day.date, 'order_type', rich.orderType?.label?.trim() || 'Unspecified', day.netCents)
+
+    // Allocate the order's net across its successful payments
+    // pro-rata by payment amount (residual cents to the largest
+    // payment), merged per tender label.
+    const pays = (rich.payments?.elements ?? []).filter(
+      (p) => p.result == null || p.result === 'SUCCESS'
+    )
+    if (tenderLabels && pays.length > 0) {
+      const totalPaid = pays.reduce((sum, p) => sum + (p.amount ?? 0), 0)
+      if (totalPaid > 0) {
+        const shares = pays.map((p) => ({
+          label: (p.tender?.id && tenderLabels.get(p.tender.id)) || 'Other',
+          raw: (day.netCents * (p.amount ?? 0)) / totalPaid,
+        }))
+        const perLabel = new Map<string, number>()
+        let assigned = 0
+        for (const s of shares) {
+          const v = Math.floor(s.raw)
+          assigned += v
+          perLabel.set(s.label, (perLabel.get(s.label) ?? 0) + v)
+        }
+        let residual = day.netCents - assigned
+        if (residual !== 0 && shares.length > 0) {
+          const biggest = shares.reduce((a, b) => (b.raw > a.raw ? b : a))
+          perLabel.set(biggest.label, (perLabel.get(biggest.label) ?? 0) + residual)
+        }
+        for (const [label, v] of perLabel) add(day.date, 'tender', label, v)
+      }
+    }
+  }
+
+  return { daily, breakdowns: [...byKey.values()] }
+}
+
+/** Back-compat wrapper: daily totals only. */
+export async function fetchCloverDailySales(
+  creds: CloverCreds,
+  sinceTs: number
+): Promise<DailySales[]> {
+  return (await fetchCloverSalesAggregates(creds, sinceTs)).daily
 }

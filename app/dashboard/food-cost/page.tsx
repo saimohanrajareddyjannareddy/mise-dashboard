@@ -20,6 +20,58 @@ import {
 type DayRow = { date: string; sales: number; spend: number }
 type WeekRow = { label: string; sales: number; spend: number; pct: number | null }
 type CategorySpend = { category: string; total: number }
+type BreakdownRow = { dimension: string; label: string; net: number; orders: number }
+
+function BreakdownGroup({
+  title,
+  rows,
+  money,
+}: {
+  title: string
+  rows: BreakdownRow[]
+  money: (n: number) => string
+}) {
+  const sorted = [...rows].sort((a, b) => b.net - a.net)
+  const total = sorted.reduce((s, r) => s + r.net, 0)
+  return (
+    <div>
+      <div className="text-[12.5px] font-semibold tracking-[0.02em] text-ink-muted">{title}</div>
+      {sorted.length === 0 ? (
+        <p className="mt-3 text-[13px] text-ink-muted">No data yet.</p>
+      ) : (
+        <div className="mt-3 space-y-3">
+          {sorted.map((r) => (
+            <div key={r.label}>
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-[13.5px] text-ink">
+                  {r.label}
+                  <span className="ml-2 font-mono text-[11.5px] text-ink-muted">
+                    {r.orders} orders
+                  </span>
+                </span>
+                <span className="font-mono text-[13.5px] text-ink">
+                  {money(r.net)}
+                  <span className="ml-2 text-ink-muted">
+                    {total > 0 ? `${((r.net / total) * 100).toFixed(0)}%` : ''}
+                  </span>
+                </span>
+              </div>
+              <div className="mt-1 h-[6px] overflow-hidden rounded-full bg-ink/[0.07]">
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${total > 0 ? Math.max(2, (r.net / total) * 100) : 0}%`,
+                    background: '#1E3A2F',
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 const WEEKS = 12
 const DAYS = WEEKS * 7 // 84
@@ -53,6 +105,7 @@ export default function FoodCostPage() {
   const restaurantId = current?.id ?? null
   const [days, setDays] = useState<DayRow[]>([])
   const [categories, setCategories] = useState<CategorySpend[]>([])
+  const [breakdowns, setBreakdowns] = useState<BreakdownRow[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -66,12 +119,26 @@ export default function FoodCostPage() {
     const start = localDate(new Date(Date.now() - (DAYS - 1) * 24 * 3600 * 1000))
     const start30 = localDate(new Date(Date.now() - (WINDOW_30 - 1) * 24 * 3600 * 1000))
 
-    const [salesRes, spendRes] = await Promise.all([
+    const [salesRes, spendRes, bdRes] = await Promise.all([
       supabase.from('daily_sales').select('date, net_cents')
         .eq('restaurant_id', restaurantId).gte('date', start).lte('date', end),
       supabase.from('invoice_headers').select('id, invoice_date, total, review_status')
         .eq('restaurant_id', restaurantId).gte('invoice_date', start).lte('invoice_date', end),
+      // Sales breakdowns (sql/016) — trailing 30d only. Errors (table
+      // not created yet) simply leave the card hidden.
+      supabase.from('sales_breakdowns').select('dimension, label, net_cents, order_count')
+        .eq('restaurant_id', restaurantId).gte('date', start30).lte('date', end),
     ])
+
+    const bdMap = new Map<string, BreakdownRow>()
+    for (const r of (bdRes.data ?? []) as { dimension: string; label: string; net_cents: number; order_count: number }[]) {
+      const key = `${r.dimension}|${r.label}`
+      const cur = bdMap.get(key) ?? { dimension: r.dimension, label: r.label, net: 0, orders: 0 }
+      cur.net += (r.net_cents || 0) / 100
+      cur.orders += r.order_count || 0
+      bdMap.set(key, cur)
+    }
+    setBreakdowns([...bdMap.values()])
 
     // One row per day, zero-filled so charts show honest gaps.
     const byDay = new Map<string, DayRow>()
@@ -200,6 +267,28 @@ export default function FoodCostPage() {
               <span className="font-semibold text-terracotta">Above the {HIGH_THRESHOLD}% threshold.</span>
               {' '}Food cost over {HIGH_THRESHOLD}% is typically considered high for restaurants —
               worth reviewing purchasing or menu pricing.
+            </div>
+          )}
+
+          {/* SALES BREAKDOWN */}
+          {breakdowns.length > 0 && (
+            <div className={`${card} mb-6`}>
+              <h2 className="font-serif text-[22px] text-ink">Sales breakdown</h2>
+              <p className="mt-1 text-[13px] text-ink-muted">
+                Where the last 30 days of net sales came from — by channel and by payment type.
+              </p>
+              <div className="mt-5 grid gap-8 sm:grid-cols-2">
+                <BreakdownGroup
+                  title="By channel"
+                  rows={breakdowns.filter((b) => b.dimension === 'order_type')}
+                  money={money}
+                />
+                <BreakdownGroup
+                  title="By payment"
+                  rows={breakdowns.filter((b) => b.dimension === 'tender')}
+                  money={money}
+                />
+              </div>
             </div>
           )}
 

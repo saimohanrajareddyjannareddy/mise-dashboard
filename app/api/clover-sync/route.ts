@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { cloverAdapter, fetchCloverDailySales, type CloverCreds } from '@/lib/pos/clover'
+import { cloverAdapter, fetchCloverSalesAggregates, type CloverCreds } from '@/lib/pos/clover'
 import { decryptToken } from '@/lib/token-crypto'
 import { cloverEnv } from '@/lib/clover-oauth'
 
@@ -109,10 +109,14 @@ export async function POST(req: NextRequest) {
   // aggregates (daily_sales) — a table the old sync script maintained
   // but this route never did, so a successful sync still left those
   // pages reading an empty table. Compute the aggregates from the
-  // same orders and replace the window's rows.
+  // same orders and replace the window's rows. The same pass also
+  // produces the channel/tender breakdowns (sales_breakdowns).
   let dailyDays = 0
+  let breakdownRows = 0
+  let breakdownError: string | null = null
   try {
-    const daily = await fetchCloverDailySales(creds, sinceTs)
+    const aggregates = await fetchCloverSalesAggregates(creds, sinceTs)
+    const daily = aggregates.daily
     if (daily.length > 0) {
       const { error: dailyDelError } = await sb
         .from('daily_sales')
@@ -140,6 +144,35 @@ export async function POST(req: NextRequest) {
       }
       dailyDays = daily.length
     }
+
+    // Breakdowns are additive: a missing table (sql/016 not run yet)
+    // must not fail a sync whose totals landed.
+    try {
+      const { error: bdDelError } = await sb
+        .from('sales_breakdowns')
+        .delete()
+        .eq('restaurant_id', restaurant_id)
+        .eq('source', 'clover')
+        .gte('date', sinceDate)
+      if (bdDelError) throw new Error(bdDelError.message)
+      if (aggregates.breakdowns.length > 0) {
+        const { error: bdError } = await sb.from('sales_breakdowns').insert(
+          aggregates.breakdowns.map((b) => ({
+            restaurant_id,
+            date: b.date,
+            dimension: b.dimension,
+            label: b.label,
+            net_cents: b.netCents,
+            order_count: b.orderCount,
+            source: 'clover',
+          }))
+        )
+        if (bdError) throw new Error(bdError.message)
+      }
+      breakdownRows = aggregates.breakdowns.length
+    } catch (e) {
+      breakdownError = (e as Error).message
+    }
   } catch (e) {
     return NextResponse.json(
       { error: `Daily sales aggregation failed: ${(e as Error).message}` },
@@ -147,5 +180,10 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  return NextResponse.json({ count: rows.length, daily_days: dailyDays })
+  return NextResponse.json({
+    count: rows.length,
+    daily_days: dailyDays,
+    breakdown_rows: breakdownRows,
+    breakdown_error: breakdownError,
+  })
 }
