@@ -110,16 +110,18 @@ export default function ActivityPanel() {
 
   return (
     <>
-      {/* Edge tab — always visible on the right side. */}
+      {/* Floating button — parked in the bottom-right corner, out of
+          the way of tables and totals (the old right-edge tab sat on
+          top of the invoice TOTAL column). */}
       <button
         onClick={() => setOpen((o) => !o)}
-        className="fixed right-0 top-1/3 z-50 flex items-center gap-1.5 rounded-l-lg bg-gray-900 py-2.5 pl-2.5 pr-2 text-white shadow-lg hover:bg-gray-800 transition"
+        className="fixed bottom-5 right-5 z-50 flex items-center gap-1.5 rounded-full bg-gray-900 px-3.5 py-2.5 text-white shadow-xl hover:bg-gray-800 transition"
         title="Activity — uploads, scans and syncs"
       >
         <Activity size={15} className={runningCount > 0 ? 'animate-pulse text-amber-400' : ''} />
-        <span className="text-xs font-medium [writing-mode:vertical-rl]">Activity</span>
+        <span className="text-xs font-medium">Activity</span>
         {runningCount > 0 && (
-          <span className="absolute -left-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white">
+          <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white">
             {runningCount}
           </span>
         )}
