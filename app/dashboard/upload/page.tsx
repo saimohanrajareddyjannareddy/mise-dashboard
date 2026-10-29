@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { useRestaurant } from '@/lib/restaurant'
 import { Upload, FileText, CheckCircle, AlertCircle, Download, X, Store } from 'lucide-react'
 import { reviewFlagsFor } from '@/lib/review-flags'
+import ReceiptScanner from '@/components/ReceiptScanner'
 
 type ParsedItem = {
   item_name: string
@@ -69,6 +70,7 @@ export default function UploadPage() {
   // fragmentation) and to detect genuinely new suppliers.
   const [vendorCanon, setVendorCanon] = useState<Map<string, string>>(new Map())
   const inputRef = useRef<HTMLInputElement>(null)
+  const [scannerOpen, setScannerOpen] = useState(false)
 
   useEffect(() => {
     if (!restaurantId) return
@@ -292,8 +294,21 @@ export default function UploadPage() {
           <Upload size={40} className={`mx-auto mb-4 ${dragging ? 'text-amber-500' : 'text-gray-300'}`} />
           <div className="text-gray-700 font-medium mb-1">Drop invoice here or click to browse</div>
           <div className="text-gray-400 text-sm">PDF, PNG, JPG, Excel, CSV supported</div>
+          <button
+            onClick={e => { e.stopPropagation(); setScannerOpen(true) }}
+            className="mt-5 px-4 py-2 bg-gray-900 text-white rounded-lg text-sm hover:bg-gray-800 transition"
+          >
+            Scan with camera — it snaps the perfect shot itself
+          </button>
         </div>
       ) : null}
+
+      {scannerOpen && (
+        <ReceiptScanner
+          onClose={() => setScannerOpen(false)}
+          onCapture={f => { setScannerOpen(false); parseFile(f) }}
+        />
+      )}
 
       {status === 'parsing' && (
         <div className="border rounded-xl p-12 text-center">
