@@ -1,8 +1,8 @@
 'use client'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRestaurant } from '@/lib/restaurant'
-import { Upload, FileText, CheckCircle, AlertCircle, Download, X } from 'lucide-react'
+import { Upload, FileText, CheckCircle, AlertCircle, Download, X, Store } from 'lucide-react'
 
 type ParsedItem = {
   item_name: string
@@ -34,6 +34,11 @@ const CATEGORY_COLORS: Record<string, string> = {
   Cleaning: 'bg-teal-100 text-teal-700',
   Credits: 'bg-rose-100 text-rose-700',
   Other: 'bg-amber-100 text-amber-700',
+}
+
+/* Comparison key for supplier names: case/whitespace-insensitive. */
+function normKey(s: string): string {
+  return s.trim().toLowerCase().replace(/\s+/g, ' ')
 }
 
 /*
@@ -92,7 +97,33 @@ export default function UploadPage() {
   const [parsed, setParsed] = useState<ParsedInvoice | null>(null)
   const [savedId, setSavedId] = useState<string | null>(null)
   const [savedReview, setSavedReview] = useState(false)
+  // Known supplier spellings for this restaurant: catalog display names
+  // win, then spellings from past invoices. Used to reuse one canonical
+  // spelling per supplier (no "RESTAURANT DEPOT" vs "Restaurant Depot"
+  // fragmentation) and to detect genuinely new suppliers.
+  const [vendorCanon, setVendorCanon] = useState<Map<string, string>>(new Map())
   const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!restaurantId) return
+    let cancelled = false
+    ;(async () => {
+      const map = new Map<string, string>()
+      const { data: vs } = await supabase.from('vendors').select('display_name')
+      vs?.forEach((v) => map.set(normKey(v.display_name), v.display_name))
+      const { data: hs } = await supabase
+        .from('invoice_headers')
+        .select('vendor')
+        .eq('restaurant_id', restaurantId)
+      hs?.forEach((h) => {
+        if (h.vendor && !map.has(normKey(h.vendor))) map.set(normKey(h.vendor), h.vendor)
+      })
+      if (!cancelled) setVendorCanon(map)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [restaurantId])
 
   function reset() {
     setFile(null); setParsed(null); setStatus('idle'); setErrorMsg(''); setSavedId(null); setSavedReview(false)
@@ -122,6 +153,27 @@ export default function UploadPage() {
     if (!parsed || !restaurantId) return
     setStatus('saving')
     try {
+      // Resolve the supplier: reuse the canonical spelling if we've seen
+      // this name before, and register the vendor in the catalog (RPC
+      // from sql/011 — matches an existing vendor or creates a
+      // restaurant-scoped one, links it, and remembers this spelling).
+      // Any failure (e.g. 011 not run yet) just skips the linking.
+      let vendorName = (parsed.vendor || 'Unknown').trim().replace(/\s+/g, ' ')
+      let vendorId: string | null = null
+      if (vendorName && vendorName.toLowerCase() !== 'unknown') {
+        vendorName = vendorCanon.get(normKey(vendorName)) ?? vendorName
+        try {
+          const { data: vid, error: vErr } = await supabase.rpc('register_invoice_vendor', {
+            p_restaurant_id: restaurantId,
+            p_display_name: vendorName,
+            p_alias_text: parsed.vendor,
+          })
+          if (!vErr && vid) vendorId = vid as string
+        } catch {
+          // Pre-011 database: proceed without the catalog link.
+        }
+      }
+
       // Register the upload in invoice_files so the AI Automation page counts it.
       // drive_file_id is UNIQUE NOT NULL; synthesize one since uploads don't go through Drive.
       const { data: fileRow, error: fErr } = await supabase
@@ -134,6 +186,7 @@ export default function UploadPage() {
           file_total: parsed.total ?? parsed.items.reduce((s, i) => s + (i.total || 0), 0),
           status: 'done',
           source: 'upload',
+          vendor_id: vendorId,
           processed_at: new Date().toISOString(),
         })
         .select('id')
@@ -146,7 +199,7 @@ export default function UploadPage() {
       const headerPayload: Record<string, unknown> = {
         restaurant_id: restaurantId,
         file_id: fileRow.id,
-        vendor: parsed.vendor || 'Unknown',
+        vendor: vendorName,
         invoice_number: parsed.invoice_number,
         invoice_date: parsed.invoice_date,
         subtotal: parsed.subtotal,
@@ -319,6 +372,23 @@ export default function UploadPage() {
               </div>
             </div>
           </div>
+
+          {(() => {
+            const raw = (parsed.vendor || '').trim().replace(/\s+/g, ' ')
+            if (!raw || raw.toLowerCase() === 'unknown') return null
+            if (vendorCanon.has(normKey(raw))) return null
+            return (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 flex items-start gap-3">
+                <Store size={18} className="text-blue-500 mt-0.5 shrink-0" />
+                <div className="text-sm">
+                  <span className="font-medium text-blue-800">New supplier: {raw}. </span>
+                  <span className="text-blue-600">
+                    First invoice from them — saving adds them to your supplier list automatically. No setup needed.
+                  </span>
+                </div>
+              </div>
+            )
+          })()}
 
           {(() => {
             const flags = reviewFlagsFor(parsed)
