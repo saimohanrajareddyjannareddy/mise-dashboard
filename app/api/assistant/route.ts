@@ -129,14 +129,31 @@ async function runTool(
       .or(`item_name.ilike.%${query}%,display_name.ilike.%${query}%`)
       .limit(200)
     const lines = data || []
-    const qtyByUnit: Record<string, number> = {}
-    let totalSpend = 0
+    // Quantities on credit/return lines are stored unsigned in some
+    // older parses — the sign lives on the money. Net them here:
+    // qty counts negative when the line total is negative, and
+    // purchases vs credits are reported separately so the answer
+    // can state the net plainly.
+    const buyQty: Record<string, number> = {}
+    const creditQty: Record<string, number> = {}
+    let buySpend = 0
+    let creditSpend = 0
+    let buyCount = 0
+    let creditCount = 0
     const matches = lines.map((l) => {
       const h = vendorById.get(l.header_id)
       const qty = qtyOf(l)
       const unit = (l.purchase_unit || 'each').toLowerCase()
-      qtyByUnit[unit] = Math.round(((qtyByUnit[unit] || 0) + qty) * 100) / 100
-      totalSpend += l.total || 0
+      const isCredit = (l.total || 0) < 0
+      if (isCredit) {
+        creditQty[unit] = Math.round(((creditQty[unit] || 0) + qty) * 100) / 100
+        creditSpend += l.total || 0
+        creditCount++
+      } else {
+        buyQty[unit] = Math.round(((buyQty[unit] || 0) + qty) * 100) / 100
+        buySpend += l.total || 0
+        buyCount++
+      }
       return {
         item: l.display_name || l.item_name,
         vendor: h?.vendor,
@@ -145,13 +162,29 @@ async function runTool(
         unit,
         unit_price: l.unit_price,
         total: l.total,
+        credit: isCredit,
       }
     })
     matches.sort((a, b) => String(b.date).localeCompare(String(a.date)))
+    const netQty: Record<string, number> = {}
+    for (const u of new Set([...Object.keys(buyQty), ...Object.keys(creditQty)])) {
+      netQty[u] = Math.round(((buyQty[u] || 0) - (creditQty[u] || 0)) * 100) / 100
+    }
     return {
-      purchase_count: lines.length,
-      total_spend: Math.round(totalSpend * 100) / 100,
-      quantities_by_unit: qtyByUnit,
+      purchases: {
+        count: buyCount,
+        spend: Math.round(buySpend * 100) / 100,
+        quantities_by_unit: buyQty,
+      },
+      credits: {
+        count: creditCount,
+        amount: Math.round(creditSpend * 100) / 100,
+        quantities_by_unit: creditQty,
+      },
+      net: {
+        spend: Math.round((buySpend + creditSpend) * 100) / 100,
+        quantities_by_unit: netQty,
+      },
       matches: matches.slice(0, 25),
     }
   }
@@ -277,6 +310,7 @@ Today is ${weekday} ${today} (the restaurant's local date). Interpret relative d
 
 Rules:
 - Use the tools before answering. Never invent numbers, prices, or invoices.
+- search_items returns purchases and credits (returns/discounts) separately, plus the net. Report it that way: what was bought, what was credited back, and the net received — never merge credit quantities into purchase quantities.
 - Report quantities per unit (lb, case, each) separately — never add different units together.
 - Format money as dollars with two decimals.
 - If the tools return no matching data, say so plainly and suggest what to check (e.g. a wider date range or a different spelling).
