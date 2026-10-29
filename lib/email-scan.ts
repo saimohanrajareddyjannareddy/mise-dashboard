@@ -331,10 +331,16 @@ export async function scanRestaurantMailbox(
           tax: parsed.tax,
           total,
         }
-        if (flags.length > 0) {
-          headerPayload.review_status = 'needs_review'
-          headerPayload.review_reason = `Email scan: ${flags.join('; ')}`
-        }
+        // Email is an untrusted channel: EVERY scanned invoice waits
+        // in the review queue for the owner's approval before it
+        // counts in the books, whatever the reconciliation checks
+        // say. (Direct uploads still flow straight in unless their
+        // numbers don't reconcile.)
+        headerPayload.review_status = 'needs_review'
+        headerPayload.review_reason =
+          flags.length > 0
+            ? `Email scan: ${flags.join('; ')}`
+            : 'Email scan: awaiting approval'
         let { data: header, error: headerError } = await sb
           .from('invoice_headers')
           .insert(headerPayload)
@@ -379,7 +385,7 @@ export async function scanRestaurantMailbox(
         }
 
         result.imported++
-        if (flags.length > 0) result.flagged++
+        result.flagged++
       }
     } catch (e) {
       result.errors.push(

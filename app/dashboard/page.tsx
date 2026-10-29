@@ -69,19 +69,21 @@ export default function DashboardPage() {
 
     const { data: headers } = await supabase
       .from('invoice_headers')
-      .select('id, invoice_date, invoice_number, vendor, total')
+      .select('id, invoice_date, invoice_number, vendor, total, review_status')
       .eq('restaurant_id', restaurantId)
       .gte('invoice_date', start)
       .lte('invoice_date', end)
       .order('invoice_date', { ascending: false })
 
     if (!headers) return
-    const total = headers.reduce((s, h) => s + (h.total || 0), 0)
+    // Unapproved (needs_review) invoices don't count in the books yet.
+    const approved = headers.filter((h: any) => h.review_status !== 'needs_review')
+    const total = approved.reduce((s, h) => s + (h.total || 0), 0)
     setTotalSpend(total)
-    setInvoiceCount(headers.length)
-    setRecentInvoices(headers.slice(0, 8))
+    setInvoiceCount(approved.length)
+    setRecentInvoices(approved.slice(0, 8))
 
-    const headerIds = headers.map(h => h.id)
+    const headerIds = approved.map(h => h.id)
     const prev = getPrevDateRange()
 
     const [linesResult, prevResult] = await Promise.all([
@@ -89,7 +91,7 @@ export default function DashboardPage() {
         ? supabase.from('invoice_lines').select('category, total').in('header_id', headerIds)
         : Promise.resolve({ data: null }),
       prev?.start && prev?.end
-        ? supabase.from('invoice_headers').select('total').eq('restaurant_id', restaurantId).gte('invoice_date', prev.start).lte('invoice_date', prev.end)
+        ? supabase.from('invoice_headers').select('total, review_status').eq('restaurant_id', restaurantId).gte('invoice_date', prev.start).lte('invoice_date', prev.end)
         : Promise.resolve({ data: null }),
     ])
 
@@ -101,7 +103,7 @@ export default function DashboardPage() {
       setTopCategory(sorted[0]?.[0] || '-')
     }
 
-    setPrevSpend(prevResult.data ? prevResult.data.reduce((s: number, h: any) => s + (h.total || 0), 0) : null)
+    setPrevSpend(prevResult.data ? prevResult.data.reduce((s: number, h: any) => s + (h.review_status === 'needs_review' ? 0 : h.total || 0), 0) : null)
 
     // Food cost % — fixed trailing-30-day window, independent of the range
     // selector above. Sales come from daily_sales (Clover sync); spend from
@@ -110,10 +112,10 @@ export default function DashboardPage() {
     const t30end = localDate(new Date())
     const [sales30, spend30] = await Promise.all([
       supabase.from('daily_sales').select('net_cents').eq('restaurant_id', restaurantId).gte('date', t30start).lte('date', t30end),
-      supabase.from('invoice_headers').select('total').eq('restaurant_id', restaurantId).gte('invoice_date', t30start).lte('invoice_date', t30end),
+      supabase.from('invoice_headers').select('total, review_status').eq('restaurant_id', restaurantId).gte('invoice_date', t30start).lte('invoice_date', t30end),
     ])
     const netSales30 = (sales30.data ?? []).reduce((s: number, r: { net_cents?: number | null }) => s + (r.net_cents || 0), 0) / 100
-    const spend30Total = (spend30.data ?? []).reduce((s: number, h: { total?: number | null }) => s + (h.total || 0), 0)
+    const spend30Total = (spend30.data ?? []).reduce((s: number, h: { total?: number | null; review_status?: string | null }) => s + (h.review_status === 'needs_review' ? 0 : h.total || 0), 0)
     setFoodCostPct(netSales30 > 0 ? (spend30Total / netSales30) * 100 : null)
 
     // Price-move alerts for the home card (top 3 shown, full list on

@@ -69,7 +69,7 @@ export default function FoodCostPage() {
     const [salesRes, spendRes] = await Promise.all([
       supabase.from('daily_sales').select('date, net_cents')
         .eq('restaurant_id', restaurantId).gte('date', start).lte('date', end),
-      supabase.from('invoice_headers').select('id, invoice_date, total')
+      supabase.from('invoice_headers').select('id, invoice_date, total, review_status')
         .eq('restaurant_id', restaurantId).gte('invoice_date', start).lte('invoice_date', end),
     ])
 
@@ -84,7 +84,9 @@ export default function FoodCostPage() {
       if (row) row.sales += (r.net_cents || 0) / 100
     }
     const headerIds30: string[] = []
-    for (const h of (spendRes.data ?? []) as { id: string; invoice_date: string; total: number | null }[]) {
+    for (const h of (spendRes.data ?? []) as { id: string; invoice_date: string; total: number | null; review_status?: string | null }[]) {
+      // Unapproved (needs_review) invoices don't count as spend yet.
+      if (h.review_status === 'needs_review') continue
       const row = byDay.get(h.invoice_date)
       if (row) row.spend += h.total || 0
       if (h.invoice_date >= start30) headerIds30.push(h.id)

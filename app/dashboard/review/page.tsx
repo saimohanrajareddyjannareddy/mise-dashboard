@@ -32,6 +32,7 @@ export default function ReviewPage() {
   const [setupPending, setSetupPending] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [approvingId, setApprovingId] = useState<string | null>(null)
+  const [denyingId, setDenyingId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     if (!restaurantId) return
@@ -75,6 +76,38 @@ export default function ReviewPage() {
     setApprovingId(null)
   }
 
+  // Deny = this is not a supplier invoice (personal bill, junk
+  // mail, wrong restaurant). Deletes the invoice from the books via
+  // the deny_invoice RPC (sql/014); the invoice_files tombstone is
+  // kept so an email scan never re-imports it.
+  async function deny(id: string) {
+    if (!restaurantId) return
+    if (
+      !window.confirm(
+        "Deny and delete this invoice? It leaves your books entirely, and email scans won't import it again."
+      )
+    )
+      return
+    setDenyingId(id)
+    setErrorMsg('')
+    const { error } = await supabase.rpc('deny_invoice', {
+      p_restaurant_id: restaurantId,
+      p_header_id: id,
+    })
+    if (error) {
+      if (error.message.includes('deny_invoice')) {
+        setErrorMsg(
+          'Deny needs one database step first: run sql/014_deny_invoice.sql in the Supabase SQL editor, then try again.'
+        )
+      } else {
+        setErrorMsg(error.message)
+      }
+    } else {
+      setRows((prev) => prev.filter((r) => r.id !== id))
+    }
+    setDenyingId(null)
+  }
+
   return (
     <div className="p-4 sm:p-8">
       <div className="mb-6">
@@ -82,7 +115,8 @@ export default function ReviewPage() {
           <ClipboardCheck className="text-amber-500" /> Review Queue
         </h1>
         <p className="text-gray-500 text-sm">
-          Invoices the AI wasn&apos;t sure about. Check them against the original, then approve.
+          Uploads whose numbers don&apos;t add up — and <span className="font-medium text-gray-700">every invoice that arrives by email</span> —
+          wait here. Approve the real supplier invoices; deny anything that isn&apos;t one.
         </p>
       </div>
 
@@ -105,7 +139,7 @@ export default function ReviewPage() {
           <div>
             <div className="font-semibold text-green-800 mb-1">All caught up</div>
             <p className="text-sm text-green-600">
-              No invoices are waiting for review. New uploads that don&apos;t reconcile will appear here automatically.
+              No invoices are waiting for review. Email-scanned invoices and uploads that don&apos;t reconcile will appear here automatically.
             </p>
           </div>
         </div>
@@ -146,6 +180,13 @@ export default function ReviewPage() {
                         >
                           Inspect <ArrowRight size={12} />
                         </Link>
+                        <button
+                          onClick={() => deny(r.id)}
+                          disabled={denyingId === r.id}
+                          className="px-3 py-1.5 bg-white border border-red-200 text-red-600 rounded-lg text-xs font-medium hover:bg-red-50 disabled:opacity-50 transition"
+                        >
+                          {denyingId === r.id ? 'Denying…' : 'Deny'}
+                        </button>
                         <button
                           onClick={() => approve(r.id)}
                           disabled={approvingId === r.id}
