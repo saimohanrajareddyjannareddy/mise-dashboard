@@ -131,14 +131,31 @@ export async function fetchCloverDailySales(
     return body.elements ?? []
   }
 
-  let orders: RefCloverOrder[]
-  try {
-    orders = await fetchOrders('lineItems,discounts,payments,refunds')
-  } catch {
-    // Some tokens can't expand refunds — retry without it (refunds
-    // then read as zero) rather than failing the whole sync.
-    orders = await fetchOrders('lineItems,discounts,payments')
+  let orders: RefCloverOrder[] | null = null
+  let lastError: Error | null = null
+  // Clover gates each expandable field behind an app permission and
+  // 403s the WHOLE call ("Invalid permissions for expandable
+  // fields") when one is missing — with no hint which. Walk down
+  // from the full set to bare lineItems (which the pos_sales fetch
+  // already proves this token can read): discounts/refunds then
+  // read as zero for that sync instead of failing it outright.
+  // (payments was in the old script's fetch but the daily math
+  // never uses it, so it isn't requested at all.)
+  const EXPANSIONS = [
+    'lineItems,discounts,refunds',
+    'lineItems,discounts',
+    'lineItems,refunds',
+    'lineItems',
+  ]
+  for (const expand of EXPANSIONS) {
+    try {
+      orders = await fetchOrders(expand)
+      break
+    } catch (e) {
+      lastError = e as Error
+    }
   }
+  if (!orders) throw lastError ?? new Error('Clover orders fetch failed')
   return computeDailySales(
     orders.map((o) => ({ ...o, clientCreatedTime: o.createdTime }))
   )
