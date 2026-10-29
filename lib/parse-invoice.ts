@@ -60,6 +60,77 @@ Rules:
 - If quantity is missing assume 1
 - All numbers as floats, no currency symbols`
 
+/* Handwriting digit confusions, both directions. */
+const CONFUSION_PAIRS: Record<string, string[]> = {
+  '3': ['5', '8'],
+  '5': ['3', '6'],
+  '8': ['3', '0'],
+  '6': ['5', '0'],
+  '0': ['6', '8'],
+  '1': ['7'],
+  '7': ['1'],
+}
+
+/* Every number reachable from n by swapping ONE digit of its
+ * 2-decimal form for a commonly confused handwritten digit. */
+function digitVariants(n: number): number[] {
+  const s = n.toFixed(2)
+  const out: number[] = []
+  for (let i = 0; i < s.length; i++) {
+    const alts = CONFUSION_PAIRS[s[i]]
+    if (!alts) continue
+    for (const alt of alts) {
+      const v = parseFloat(s.slice(0, i) + alt + s.slice(i + 1))
+      if (Number.isFinite(v) && v !== n) out.push(v)
+    }
+  }
+  return out
+}
+
+/*
+ * Reconciliation repair: if the items don't add up to the stated
+ * total, but a SINGLE digit confusion in ONE line explains the
+ * whole difference, apply it. The corrected unit price must carry
+ * the same confused digit and still multiply out to the corrected
+ * total (on paper slips the price and amount columns are the same
+ * handwriting read twice — a real fix is consistent across both).
+ * Only a unique fix is applied; anything ambiguous is left alone
+ * and the review queue catches it, as before.
+ */
+function repairReconciliation(parsed: ParsedInvoice): void {
+  const items = parsed.items || []
+  if (items.length === 0) return
+  const target =
+    parsed.total ??
+    (parsed.subtotal != null && parsed.tax != null
+      ? parsed.subtotal + parsed.tax
+      : parsed.subtotal)
+  if (target == null) return
+  const sum = items.reduce((s, i) => s + (i.total || 0), 0)
+  if (Math.abs(target - sum) <= 0.02) return
+
+  type Fix = { idx: number; newTotal: number; newUnit: number }
+  const fixes: Fix[] = []
+  items.forEach((item, idx) => {
+    const total = item.total || 0
+    const unit = item.unit_price || 0
+    const qty = item.quantity || 1
+    const unitOptions = [unit, ...digitVariants(unit)]
+    for (const candTotal of digitVariants(total)) {
+      if (Math.abs(sum - total + candTotal - target) > 0.02) continue
+      for (const candUnit of unitOptions) {
+        if (Math.abs(qty * candUnit - candTotal) <= 0.02) {
+          fixes.push({ idx, newTotal: candTotal, newUnit: candUnit })
+        }
+      }
+    }
+  })
+  if (fixes.length !== 1) return
+  const f = fixes[0]
+  items[f.idx].total = f.newTotal
+  items[f.idx].unit_price = f.newUnit
+}
+
 /* ------------------------------------------------------------------ */
 /* Post-processing shared by both readers: category assignment,       */
 /* display-name fallback, qty x price completion, and the discount    */
@@ -77,6 +148,8 @@ function postProcess(parsed: ParsedInvoice): ParsedInvoice {
     else if (total && !price)
       item.unit_price = Math.round((total / qty) * 10000) / 10000
   }
+
+  repairReconciliation(parsed)
 
   // Discount backstop: a negative line with quantity 0 naming a
   // purchased item is a register discount (see the prompt rules) —
