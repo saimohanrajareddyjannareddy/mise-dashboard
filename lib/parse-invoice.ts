@@ -93,7 +93,7 @@ export async function parseInvoiceBytes(
     },
     body: JSON.stringify({
       model: 'claude-opus-4-7',
-      max_tokens: 4096,
+      max_tokens: 16384,
       system: SYSTEM_PROMPT,
       messages: [
         {
@@ -113,6 +113,13 @@ export async function parseInvoiceBytes(
   }
 
   const result = await claudeResp.json()
+  if (result.stop_reason === 'max_tokens') {
+    // A many-line invoice overflowed the response budget — say so
+    // plainly instead of failing JSON.parse on a truncated string.
+    throw new Error(
+      'This invoice has too many lines to read in one pass. Try uploading it as two parts.'
+    )
+  }
   let raw: string = result.content[0].text.trim()
   raw = raw.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '')
   const parsed = JSON.parse(raw) as ParsedInvoice

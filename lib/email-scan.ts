@@ -107,8 +107,13 @@ export async function scanRestaurantMailbox(
   if (!pack.refresh_token) throw new Error('mailbox_not_connected')
   const accessToken = await refreshGoogleAccessToken(pack.refresh_token)
 
+  // 48h overlap behind the last scan: messages that failed to parse
+  // (or arrived mid-scan) get retried instead of being skipped
+  // forever once last_scan_at moves past them. Imports are deduped
+  // by Gmail message id + content hash, so re-seeing a message that
+  // already imported is a cheap no-op.
   const since = row.mailbox_last_scan_at
-    ? new Date(row.mailbox_last_scan_at)
+    ? new Date(new Date(row.mailbox_last_scan_at).getTime() - 48 * 60 * 60 * 1000)
     : new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
   const messageIds = await listMessagesWithAttachments(
     accessToken,
