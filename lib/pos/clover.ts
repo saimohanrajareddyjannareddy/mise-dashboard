@@ -3,6 +3,10 @@ import type { PosAdapter, PosSaleRow } from './types'
 export interface CloverCreds {
   clover_merchant_id: string
   clover_api_key: string
+  // 'sandbox' hits the Clover sandbox hosts (OAuth test merchants);
+  // anything else uses production. Manual tokens historically always
+  // used production, so this stays unset on that path.
+  clover_env?: string
 }
 
 interface CloverLineItem {
@@ -31,7 +35,11 @@ export const cloverAdapter: PosAdapter<CloverCreds> = {
       throw new Error('Clover credentials missing')
     }
 
-    const url = `https://api.clover.com/v3/merchants/${creds.clover_merchant_id}/orders?filter=createdTime>=${sinceTs}&expand=lineItems&limit=1000`
+    const apiHost =
+      creds.clover_env === 'sandbox'
+        ? 'https://apisandbox.dev.clover.com'
+        : 'https://api.clover.com'
+    const url = `${apiHost}/v3/merchants/${creds.clover_merchant_id}/orders?filter=createdTime>=${sinceTs}&expand=lineItems&limit=1000`
 
     const resp = await fetch(url, {
       headers: {

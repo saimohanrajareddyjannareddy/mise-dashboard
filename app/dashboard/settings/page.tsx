@@ -23,6 +23,12 @@ export default function SettingsPage() {
   const [syncing, setSyncing] = useState(false)
   const [syncMsg, setSyncMsg] = useState('')
 
+  // Clover OAuth state
+  const [oauthConfigured, setOauthConfigured] = useState(false)
+  const [oauthEnv, setOauthEnv] = useState('')
+  const [oauthConnected, setOauthConnected] = useState(false)
+  const [cloverBanner, setCloverBanner] = useState<string | null>(null)
+
   // Restaurant Depot state
   const [rdEmail, setRdEmail] = useState('')
   const [rdPassword, setRdPassword] = useState('')
@@ -45,23 +51,64 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (!restaurantId) return
-    supabase
-      .from('restaurant_settings')
-      .select('clover_merchant_id, clover_api_key')
-      .eq('restaurant_id', restaurantId)
-      .single()
-      .then(({ data: settings }) => {
-        if (settings) {
-          setMerchantId(settings.clover_merchant_id || '')
-          setApiKey(settings.clover_api_key ? '••••••••' : '')
-          setConnected(!!(settings.clover_merchant_id && settings.clover_api_key))
-        } else {
-          setMerchantId('')
-          setApiKey('')
-          setConnected(false)
-        }
-      })
+    ;(async () => {
+      const full = await supabase
+        .from('restaurant_settings')
+        .select('clover_merchant_id, clover_api_key, clover_auth_method')
+        .eq('restaurant_id', restaurantId)
+        .single()
+      let settings: {
+        clover_merchant_id: string | null
+        clover_api_key: string | null
+        clover_auth_method?: string | null
+      } | null = full.data
+      if (full.error) {
+        // Pre-012 database: the OAuth columns don't exist yet.
+        const legacy = await supabase
+          .from('restaurant_settings')
+          .select('clover_merchant_id, clover_api_key')
+          .eq('restaurant_id', restaurantId)
+          .single()
+        settings = legacy.data
+      }
+      if (settings) {
+        setMerchantId(settings.clover_merchant_id || '')
+        setApiKey(settings.clover_api_key ? '••••••••' : '')
+        const isOauth = settings.clover_auth_method === 'oauth'
+        setOauthConnected(isOauth)
+        setConnected(!!(settings.clover_merchant_id && settings.clover_api_key) || isOauth)
+      } else {
+        setMerchantId('')
+        setApiKey('')
+        setConnected(false)
+        setOauthConnected(false)
+      }
+    })()
   }, [restaurantId])
+
+  // OAuth availability on the server + the result banner after the
+  // callback redirects back here with ?clover=<result>.
+  useEffect(() => {
+    fetch('/api/clover/status')
+      .then((r) => r.json())
+      .then((j) => {
+        setOauthConfigured(!!j.oauth_configured)
+        setOauthEnv(j.env || '')
+      })
+      .catch(() => {})
+    const result = new URLSearchParams(window.location.search).get('clover')
+    if (result) {
+      const messages: Record<string, string> = {
+        connected: 'Clover connected. Sales will sync with your OAuth token, stored encrypted.',
+        not_configured: "Clover OAuth isn't configured on the server yet — the app credentials are missing.",
+        migration_needed: 'Almost there: run sql/012_clover_oauth.sql in the Supabase SQL editor, then connect again.',
+        no_encryption_key: 'The server is missing its token encryption key (TOKEN_ENCRYPTION_KEY). Set it, then connect again.',
+        failed: "The Clover connection didn't complete. Try again.",
+        missing_restaurant: "The Clover connection didn't complete. Try again.",
+      }
+      setCloverBanner(messages[result] ?? null)
+    }
+  }, [])
 
   async function saveClover() {
     if (!restaurantId) return
@@ -232,6 +279,32 @@ export default function SettingsPage() {
             <div className="text-sm text-gray-500">Pull sales data to enable wastage tracking</div>
           </div>
         </div>
+
+        {cloverBanner && (
+          <div className="mb-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            {cloverBanner}
+          </div>
+        )}
+
+        {oauthConnected ? (
+          <div className="mb-5 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+            Connected with Clover — nothing to copy or manage. Your access token is stored
+            encrypted, and sales sync uses it automatically.
+          </div>
+        ) : oauthConfigured ? (
+          <div className="mb-5">
+            <a
+              href={`/api/clover/connect?restaurant_id=${restaurantId}`}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition"
+            >
+              <Link2 size={15} /> Connect with Clover{oauthEnv === 'sandbox' ? ' (sandbox)' : ''}
+            </a>
+            <p className="text-xs text-gray-400 mt-2">
+              Recommended — you approve access on Clover&apos;s own site, no token copying.
+              Or paste a token manually below.
+            </p>
+          </div>
+        ) : null}
 
         <div className="space-y-4 mb-5">
           <div>

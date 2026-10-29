@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { cloverAdapter, type CloverCreds } from '@/lib/pos/clover'
+import { decryptToken } from '@/lib/token-crypto'
+import { cloverEnv } from '@/lib/clover-oauth'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY!
@@ -19,17 +21,54 @@ export async function POST(req: NextRequest) {
 
   const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
-  const { data: settings, error: settingsError } = await sb
+  // Prefer the OAuth columns; fall back to the legacy select until
+  // sql/012 has run (the wider select errors when they don't exist).
+  type SettingsRow = {
+    clover_merchant_id: string | null
+    clover_api_key: string | null
+    clover_token_enc?: string | null
+  }
+  const full = await sb
     .from('restaurant_settings')
-    .select('clover_merchant_id, clover_api_key')
+    .select('clover_merchant_id, clover_api_key, clover_token_enc')
     .eq('restaurant_id', restaurant_id)
     .single()
+  let settings: SettingsRow | null = (full.data as SettingsRow) ?? null
+  if (full.error) {
+    const legacy = await sb
+      .from('restaurant_settings')
+      .select('clover_merchant_id, clover_api_key')
+      .eq('restaurant_id', restaurant_id)
+      .single()
+    settings = (legacy.data as SettingsRow) ?? null
+  }
 
-  if (settingsError || !settings?.clover_merchant_id || !settings?.clover_api_key) {
+  // OAuth token wins when present; the manual plaintext key is the
+  // fallback for restaurants that haven't reconnected yet.
+  let apiToken: string | null = settings?.clover_api_key ?? null
+  let env: string | undefined
+  if (settings?.clover_token_enc) {
+    try {
+      apiToken = decryptToken(settings.clover_token_enc)
+      env = cloverEnv()
+    } catch {
+      return NextResponse.json(
+        { error: 'Stored Clover token could not be decrypted (TOKEN_ENCRYPTION_KEY missing or changed)' },
+        { status: 500 },
+      )
+    }
+  }
+
+  if (!settings?.clover_merchant_id || !apiToken) {
     return NextResponse.json(
       { error: 'Clover not configured for this restaurant' },
       { status: 400 },
     )
+  }
+  const creds: CloverCreds = {
+    clover_merchant_id: settings.clover_merchant_id,
+    clover_api_key: apiToken,
+    clover_env: env,
   }
 
   const sinceTs = Date.now() - WINDOW_DAYS * 24 * 60 * 60 * 1000
@@ -39,7 +78,7 @@ export async function POST(req: NextRequest) {
   try {
     rows = await cloverAdapter.fetchSales({
       restaurant_id,
-      creds: settings as CloverCreds,
+      creds,
       sinceTs,
     })
   } catch (e) {

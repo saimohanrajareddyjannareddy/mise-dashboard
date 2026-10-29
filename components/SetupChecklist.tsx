@@ -56,13 +56,29 @@ export default function SetupChecklist() {
         count('pos_sales'),
         count('user_restaurants'),
       ])
-      const { data: settings } = await supabase
+      let settingsRes = await supabase
         .from('restaurant_settings')
-        .select('clover_merchant_id, clover_api_key')
+        .select('clover_merchant_id, clover_api_key, clover_token_enc')
         .eq('restaurant_id', restaurantId)
         .maybeSingle()
+      if (settingsRes.error) {
+        // Pre-012 database: no OAuth token column yet.
+        settingsRes = await supabase
+          .from('restaurant_settings')
+          .select('clover_merchant_id, clover_api_key')
+          .eq('restaurant_id', restaurantId)
+          .maybeSingle()
+      }
+      const settings = settingsRes.data as {
+        clover_merchant_id?: string | null
+        clover_api_key?: string | null
+        clover_token_enc?: string | null
+      } | null
       if (cancelled) return
-      const posConnected = !!(settings?.clover_merchant_id && settings?.clover_api_key)
+      const posConnected = !!(
+        settings?.clover_merchant_id &&
+        (settings?.clover_api_key || settings?.clover_token_enc)
+      )
       setSteps([
         {
           key: 'invoice',
