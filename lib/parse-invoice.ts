@@ -44,12 +44,14 @@ Output this exact schema (no markdown, no explanation):
       "quantity": number,
       "purchase_unit": "lb | each | case",
       "unit_price": number,
-      "total": number
+      "total": number,
+      "category": "Proteins | Produce | Dairy | Dry Goods | Beverages | Packaging | Cleaning | Other"
     }
   ]
 }
 
 Rules:
+- category: judge by what the item IS — meats and seafood → Proteins; milk, cheese, butter, yogurt, paneer, cream, eggs → Dairy; fresh vegetables, fruits and herbs → Produce; rice, flour, spices, masalas, oils, nuts, canned goods and other shelf-stable foods → Dry Goods; drinks → Beverages; containers, cups, bags, foil → Packaging; soaps and cleaning chemicals → Cleaning; anything else → Other
 - purchase_unit: "lb" if sold by weight, "case" if sold as a case of multiple units, "each" for everything else
 - Skip non-product rows: taxes, fees, subtotals, payment rows, tips
 - display_name: expand abbreviations (SHR→Shrimp, CHIX→Chicken, BTR→Butter, BNLS→Boneless, BRST→Breast, THGH→Thigh, PROD→remove, FZ→Frozen, GARLC→Garlic, HAL→Halal, etc.)
@@ -131,6 +133,34 @@ function repairReconciliation(parsed: ParsedInvoice): void {
   items[f.idx].unit_price = f.newUnit
 }
 
+const KNOWN_CATEGORIES = ['Proteins', 'Produce', 'Dairy', 'Dry Goods', 'Beverages', 'Packaging', 'Cleaning', 'Credits', 'Other']
+const CATEGORY_ALIASES: Record<string, string> = {
+  protein: 'Proteins', meat: 'Proteins', meats: 'Proteins', seafood: 'Proteins',
+  vegetable: 'Produce', vegetables: 'Produce', fruit: 'Produce', fruits: 'Produce',
+  pantry: 'Dry Goods', spice: 'Dry Goods', spices: 'Dry Goods', grocery: 'Dry Goods', groceries: 'Dry Goods', frozen: 'Dry Goods',
+  beverage: 'Beverages', drink: 'Beverages', drinks: 'Beverages',
+  supplies: 'Packaging', disposable: 'Packaging', disposables: 'Packaging', janitorial: 'Cleaning',
+}
+
+/*
+ * Category resolution: the AI reader judges by what an item IS (it
+ * knows okra is produce and cashews are dry goods); the dictionary
+ * knows the house vocabulary for supplier codes. A known AI label
+ * wins, then the dictionary, then any specific AI label, else Other.
+ */
+function resolveCategory(aiCategory: string | undefined, itemName: string): string {
+  const raw = (aiCategory || '').trim()
+  if (raw) {
+    const known = KNOWN_CATEGORIES.find(c => c.toLowerCase() === raw.toLowerCase())
+    if (known) return known
+    const alias = CATEGORY_ALIASES[raw.toLowerCase()]
+    if (alias) return alias
+  }
+  const dict = categorize(itemName)
+  if (dict !== 'Other') return dict
+  return raw && raw.toLowerCase() !== 'other' ? raw : 'Other'
+}
+
 /* ------------------------------------------------------------------ */
 /* Post-processing shared by both readers: category assignment,       */
 /* display-name fallback, qty x price completion, and the discount    */
@@ -138,7 +168,7 @@ function repairReconciliation(parsed: ParsedInvoice): void {
 /* ------------------------------------------------------------------ */
 function postProcess(parsed: ParsedInvoice): ParsedInvoice {
   for (const item of parsed.items || []) {
-    item.category = categorize(item.item_name || '')
+    item.category = resolveCategory(item.category, item.item_name || '')
     item.display_name = item.display_name || item.item_name
     item.purchase_unit = item.purchase_unit || 'each'
     const qty = item.quantity || 1
