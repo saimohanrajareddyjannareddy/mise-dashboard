@@ -22,6 +22,7 @@ export async function GET(req: NextRequest) {
 
   if (!cloverOauthConfigured()) return back('not_configured')
 
+  const merchantIdParam = req.nextUrl.searchParams.get('merchant_id')
   const code = req.nextUrl.searchParams.get('code')
   const state = req.nextUrl.searchParams.get('state')
   const cookie = req.cookies.get('clover_oauth_state')?.value
@@ -55,7 +56,9 @@ export async function GET(req: NextRequest) {
     if (!resp.ok) return back(`exchange_${resp.status}`)
     const body = await resp.json()
     accessToken = body.access_token
-    merchantId = body.merchant_id
+    // The token body carries only the access token; the merchant id
+    // arrives as a query param on Clover's callback redirect.
+    merchantId = body.merchant_id || merchantIdParam || undefined
   } catch {
     return back('exchange_network')
   }
