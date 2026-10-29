@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRestaurant } from '@/lib/restaurant'
-import { CheckCircle, AlertCircle, Link2, Key, AlertTriangle, Trash2, Store, CreditCard, X } from 'lucide-react'
+import { CheckCircle, AlertCircle, Link2, Key, AlertTriangle, Trash2, Store, CreditCard, X, Mail } from 'lucide-react'
 
 type DeletionCounts = {
   invoice_files: number
@@ -34,6 +34,15 @@ export default function SettingsPage() {
   const [hasSubscription, setHasSubscription] = useState(false)
   const [billingBusy, setBillingBusy] = useState(false)
   const [billingMsg, setBillingMsg] = useState<string | null>(null)
+
+  // Email scan state
+  const [mailConfigured, setMailConfigured] = useState(false)
+  const [mailConnected, setMailConnected] = useState(false)
+  const [mailEmail, setMailEmail] = useState('')
+  const [mailLastScan, setMailLastScan] = useState<string | null>(null)
+  const [mailBanner, setMailBanner] = useState<string | null>(null)
+  const [mailScanning, setMailScanning] = useState(false)
+  const [mailMsg, setMailMsg] = useState<string | null>(null)
 
   // Restaurant Depot state
   const [rdEmail, setRdEmail] = useState('')
@@ -185,6 +194,67 @@ export default function SettingsPage() {
       setBillingMsg(e.message || 'Portal failed')
       setBillingBusy(false)
     }
+  }
+
+  // Email scan: server configuration + this restaurant's connection.
+  useEffect(() => {
+    if (!restaurantId) return
+    fetch(`/api/email/status?restaurant_id=${restaurantId}`)
+      .then((r) => r.json())
+      .then((j) => {
+        setMailConfigured(!!j.configured)
+        setMailConnected(!!j.connected)
+        setMailEmail(j.email || '')
+        setMailLastScan(j.last_scan_at ?? null)
+      })
+      .catch(() => {})
+    const b = new URLSearchParams(window.location.search).get('email')
+    const messages: Record<string, string> = {
+      connected: 'Email connected. Hit "Scan now" to pull in supplier invoices right away.',
+      migration_needed: 'Almost there — the email tables need a quick database update first (migration 013).',
+      no_encryption_key: "Email connect needs the server's encryption key set up first.",
+      not_configured: 'Email connect is not switched on yet.',
+      failed: "The email connection didn't complete. Try again.",
+    }
+    if (b && messages[b]) setMailBanner(messages[b])
+  }, [restaurantId])
+
+  async function scanNow() {
+    if (!restaurantId) return
+    setMailScanning(true)
+    setMailMsg(null)
+    try {
+      const resp = await fetch('/api/email/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ restaurant_id: restaurantId }),
+      })
+      const json = await resp.json()
+      if (!resp.ok) throw new Error(json.error || 'Scan failed')
+      setMailLastScan(new Date().toISOString())
+      setMailMsg(
+        `Scan complete: ${json.imported} invoice${json.imported === 1 ? '' : 's'} imported` +
+          (json.flagged ? `, ${json.flagged} sent to review` : '') +
+          (json.errors?.length ? ` (${json.errors.length} couldn't be read)` : '') +
+          '.'
+      )
+    } catch (e: any) {
+      setMailMsg(e.message || 'Scan failed')
+    }
+    setMailScanning(false)
+  }
+
+  async function disconnectMail() {
+    if (!restaurantId) return
+    await fetch('/api/email/disconnect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ restaurant_id: restaurantId }),
+    }).catch(() => {})
+    setMailConnected(false)
+    setMailEmail('')
+    setMailLastScan(null)
+    setMailMsg('Email disconnected.')
   }
 
   async function triggerSync() {    setSyncing(true); setSyncMsg('')
@@ -479,6 +549,75 @@ export default function SettingsPage() {
             Secure checkout and card management run on Stripe. Cancel anytime from the billing portal.
           </p>
         )}
+      </div>
+
+      <div className="bg-white rounded-xl border p-6 mb-6">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-10 h-10 bg-rose-100 rounded-xl flex items-center justify-center">
+            <Mail size={18} className="text-rose-600" />
+          </div>
+          <div>
+            <div className="font-semibold text-gray-900 flex items-center gap-2">
+              Email invoices
+              {mailConnected && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex items-center gap-1"><CheckCircle size={10} /> Connected</span>}
+            </div>
+            <div className="text-sm text-gray-500">We scan your inbox for supplier invoices and import them for you</div>
+          </div>
+        </div>
+
+        {mailBanner && (
+          <div className="flex items-start gap-2 bg-blue-50 text-blue-800 text-sm rounded-lg px-3 py-2 mb-4">
+            <AlertCircle size={15} className="mt-0.5 shrink-0" />
+            <span>{mailBanner}</span>
+          </div>
+        )}
+
+        <p className="text-sm text-gray-600 mb-4">
+          Lost a paper receipt? If your supplier emailed a copy — or sends invoices by
+          email from their app — connecting your inbox lets mise find and import them
+          automatically. We only import emails that look like supplier invoices
+          (known supplier senders, or attachments named like an invoice). Access is
+          read-only: we never send, move, or delete your mail.
+        </p>
+
+        {mailConnected ? (
+          <div className="space-y-3">
+            <p className="text-sm text-gray-700">
+              Scanning <span className="font-medium">{mailEmail}</span>
+              {mailLastScan
+                ? ` · last scan ${new Date(mailLastScan).toLocaleString()}`
+                : ' · not scanned yet'}
+              . New invoices are also picked up automatically once a day.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={scanNow}
+                disabled={mailScanning}
+                className="bg-gray-900 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-800 disabled:opacity-50"
+              >
+                {mailScanning ? 'Scanning…' : 'Scan now'}
+              </button>
+              <button
+                onClick={disconnectMail}
+                className="text-sm font-medium px-4 py-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
+              >
+                Disconnect
+              </button>
+            </div>
+          </div>
+        ) : mailConfigured ? (
+          <a
+            href={`/api/email/connect?restaurant_id=${restaurantId ?? ''}`}
+            className="inline-block bg-gray-900 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-800"
+          >
+            Connect Gmail
+          </a>
+        ) : (
+          <p className="text-sm text-gray-400">
+            Email scanning isn't switched on yet — it will appear here once it's ready.
+          </p>
+        )}
+        {mailMsg && <p className="text-sm text-gray-600 mt-3">{mailMsg}</p>}
       </div>
 
       <div className="bg-white rounded-xl border p-6 mb-6">
