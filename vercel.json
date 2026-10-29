@@ -1,1 +1,1 @@
-{"crons":[{"path":"/api/email/scan-all","schedule":"30 13 * * *"}]}
+{"crons":[{"path":"/api/email/scan-all","schedule":"30 13 * * *"},{"path":"/api/clover/sync-all","schedule":"45 12 * * *"}]}
