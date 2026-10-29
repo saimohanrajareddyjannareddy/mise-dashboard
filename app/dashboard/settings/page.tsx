@@ -574,7 +574,7 @@ export default function SettingsPage() {
 
         <p className="text-sm text-gray-600 mb-4">
           Lost a paper receipt? If your supplier emailed a copy — or sends invoices by
-          email from their app — connecting your inbox lets mise find and import them
+          email from their app — connecting your inbox lets InvoiceIQ find and import them
           automatically. We only import emails that look like supplier invoices
           (known supplier senders, or attachments named like an invoice). Access is
           read-only: we never send, move, or delete your mail.

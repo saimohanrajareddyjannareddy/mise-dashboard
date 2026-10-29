@@ -61,7 +61,7 @@ export default function SignupPage() {
       {/* LEFT: form */}
       <div className="relative flex flex-col bg-cream px-6 py-10 md:px-14">
         <div className="flex items-baseline gap-px font-serif text-[28px] tracking-[-0.5px] text-forest">
-          <span>mise</span>
+          <span>InvoiceIQ</span>
           <span className="text-[32px] leading-[0] text-terracotta">.</span>
         </div>
 
@@ -178,7 +178,7 @@ export default function SignupPage() {
         </div>
 
         <div className="absolute bottom-8 left-14 font-serif text-[20px] text-[rgba(247,243,237,.55)]">
-          mise<span className="text-terracotta-hover">.</span>
+          InvoiceIQ<span className="text-terracotta-hover">.</span>
         </div>
       </div>
     </div>

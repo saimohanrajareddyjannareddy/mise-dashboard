@@ -41,7 +41,7 @@ export default function LandingPage() {
       {/* NAV */}
       <nav className="mx-auto flex max-w-[1240px] items-center justify-between px-6 py-[26px] md:px-10">
         <div className="flex items-baseline gap-0.5 font-serif text-[30px] tracking-[-0.5px] text-forest">
-          <span>mise</span>
+          <span>InvoiceIQ</span>
           <span className="text-[34px] leading-[0] text-terracotta">.</span>
         </div>
         <div className="flex items-center gap-5 md:gap-[34px]">
@@ -234,14 +234,14 @@ export default function LandingPage() {
             <span className="h-[11px] w-[11px] rounded-full bg-[#D9877A]" />
             <span className="h-[11px] w-[11px] rounded-full bg-[#E4C07A]" />
             <span className="h-[11px] w-[11px] rounded-full bg-[#9DBF9E]" />
-            <span className="ml-[14px] font-mono text-[12px] text-ink-muted">app.mise.app/dashboard</span>
+            <span className="ml-[14px] font-mono text-[12px] text-ink-muted">getinvoiceiq.com/dashboard</span>
           </div>
 
           <div className="grid md:grid-cols-[220px_1fr]">
             {/* sidebar (desktop only) */}
             <aside className="hidden min-h-[460px] bg-forest px-4 py-[22px] text-[#DDE7E0] md:block">
               <div className="px-2 pb-[22px] font-serif text-[24px] text-cream">
-                mise<span className="text-terracotta-hover">.</span>
+                InvoiceIQ<span className="text-terracotta-hover">.</span>
               </div>
               <div className="flex flex-col gap-[3px] text-[14px]">
                 <div className="rounded-[8px] bg-[rgba(217,119,66,.18)] px-3 py-[9px] font-semibold text-[#FBE5D8]">Price tracker</div>
@@ -388,7 +388,7 @@ export default function LandingPage() {
         <blockquote className="m-0">
           <p className="mb-7 font-serif text-[28px] font-normal italic leading-[1.25] tracking-[-0.5px] text-ink md:text-[40px]">
             “I was losing <span className="text-terracotta">$400 a month</span> to price drift on three vendors and had
-            no idea. mise caught it in the first week.”
+            no idea. InvoiceIQ caught it in the first week.”
           </p>
         </blockquote>
         <div className="flex items-center justify-center gap-3">
@@ -491,9 +491,9 @@ export default function LandingPage() {
       <footer className="mx-auto flex max-w-[1240px] flex-wrap items-center justify-between gap-4 px-6 py-10 md:px-10">
         <div className="flex items-center gap-2 text-[13.5px] text-ink-muted">
           <span className="font-serif text-[20px] text-forest">
-            mise<span className="text-terracotta">.</span>
+            InvoiceIQ<span className="text-terracotta">.</span>
           </span>
-          <span className="mx-1">·</span> hello@mise.app
+          <span className="mx-1">·</span> hello@getinvoiceiq.com
         </div>
         <div className="flex gap-[22px] text-[13.5px]">
           <Link href="#" className="text-ink-muted hover:text-ink-2">Terms</Link>

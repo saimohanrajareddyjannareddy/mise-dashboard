@@ -25,7 +25,7 @@ const plexMono = IBM_Plex_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Mise — Invoice Analytics',
+  title: 'InvoiceIQ — Invoice Analytics',
   description: 'Centralized invoice automation for restaurants.',
 }
 

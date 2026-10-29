@@ -141,7 +141,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         }`}
       >
         <Link href="/dashboard" className="mb-5 px-2 font-serif text-[26px] text-cream">
-          mise<span className="text-terracotta-hover">.</span>
+          InvoiceIQ<span className="text-terracotta-hover">.</span>
         </Link>
 
         {/* Restaurant switcher — same useRestaurant() wiring, custom dropdown for readability. */}
