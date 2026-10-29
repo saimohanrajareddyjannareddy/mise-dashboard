@@ -44,14 +44,6 @@ export default function SettingsPage() {
   const [mailScanning, setMailScanning] = useState(false)
   const [mailMsg, setMailMsg] = useState<string | null>(null)
 
-  // Restaurant Depot state
-  const [rdEmail, setRdEmail] = useState('')
-  const [rdPassword, setRdPassword] = useState('')
-  const [rdStoreNumber, setRdStoreNumber] = useState('')
-  const [rdStatus, setRdStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
-  const [rdErr, setRdErr] = useState<string | null>(null)
-  const [rdConnected, setRdConnected] = useState(false)
-
   // Business cards state
   const [cards, setCards] = useState<string[]>([])
   const [newCard, setNewCard] = useState('')
@@ -262,48 +254,6 @@ export default function SettingsPage() {
     const json = await resp.json()
     setSyncMsg(resp.ok ? `Synced ${json.count} sales records.` : json.error || 'Sync failed')
     setSyncing(false)
-  }
-
-  useEffect(() => {
-    if (!restaurantId) return
-    setRdErr(null)
-    supabase
-      .from('restaurants')
-      .select('rd_email, rd_password, rd_store_number')
-      .eq('id', restaurantId)
-      .single()
-      .then(({ data }) => {
-        if (data) {
-          setRdEmail(data.rd_email || '')
-          setRdPassword(data.rd_password ? '••••••••' : '')
-          setRdStoreNumber(data.rd_store_number || '')
-          setRdConnected(!!(data.rd_email && data.rd_password && data.rd_store_number))
-        } else {
-          setRdEmail(''); setRdPassword(''); setRdStoreNumber(''); setRdConnected(false)
-        }
-      })
-  }, [restaurantId])
-
-  async function saveRD() {
-    if (!restaurantId) return
-    setRdStatus('saving'); setRdErr(null)
-    const passwordChanged = !rdPassword.startsWith('••')
-    const { error } = await supabase.rpc('update_my_restaurant_credentials', {
-      p_restaurant_id: restaurantId,
-      p_rd_email: rdEmail.trim(),
-      p_rd_password: passwordChanged ? rdPassword.trim() : null,
-      p_rd_store_number: rdStoreNumber.trim(),
-    })
-    if (error) {
-      setRdStatus('error')
-      setRdErr(error.message || 'Save failed')
-      return
-    }
-    const passwordIsSet = passwordChanged ? !!rdPassword.trim() : rdConnected
-    setRdConnected(!!(rdEmail.trim() && rdStoreNumber.trim() && passwordIsSet))
-    if (passwordChanged && rdPassword.trim()) setRdPassword('••••••••')
-    setRdStatus('saved')
-    setTimeout(() => setRdStatus('idle'), 3000)
   }
 
   // Business cards — load on restaurant switch
@@ -618,80 +568,6 @@ export default function SettingsPage() {
           </p>
         )}
         {mailMsg && <p className="text-sm text-gray-600 mt-3">{mailMsg}</p>}
-      </div>
-
-      <div className="bg-white rounded-xl border p-6 mb-6">
-        <div className="flex items-center gap-3 mb-5">
-          <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-            <Store size={18} className="text-blue-600" />
-          </div>
-          <div>
-            <div className="font-semibold text-gray-900 flex items-center gap-2">
-              Restaurant Depot
-              {rdConnected && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex items-center gap-1"><CheckCircle size={10} /> Connected</span>}
-            </div>
-            <div className="text-sm text-gray-500">Auto-pull invoices daily via the Apify scraper</div>
-          </div>
-        </div>
-
-        <div className="space-y-4 mb-5">
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1.5 uppercase tracking-wide">Email</label>
-            <input
-              value={rdEmail}
-              onChange={e => setRdEmail(e.target.value)}
-              type="email"
-              autoComplete="off"
-              placeholder="login@example.com"
-              className="w-full border rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-amber-500"
-            />
-            <p className="text-xs text-gray-400 mt-1">Your Restaurant Depot account login email</p>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1.5 uppercase tracking-wide flex items-center gap-1"><Key size={11} /> Password</label>
-            <input
-              value={rdPassword}
-              onChange={e => setRdPassword(e.target.value)}
-              type="password"
-              autoComplete="new-password"
-              placeholder="Restaurant Depot password"
-              className="w-full border rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-amber-500"
-            />
-            <p className="text-xs text-gray-400 mt-1">Stored in your private Supabase project. Leave masked to keep the existing value.</p>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1.5 uppercase tracking-wide">Store Number</label>
-            <input
-              value={rdStoreNumber}
-              onChange={e => setRdStoreNumber(e.target.value)}
-              placeholder="e.g. 79"
-              className="w-full border rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-amber-500"
-            />
-            <p className="text-xs text-gray-400 mt-1">The store you order from — visible on any past RD receipt.</p>
-          </div>
-        </div>
-
-        {rdErr && (
-          <div className="bg-red-50 text-red-700 text-sm p-2.5 rounded mb-3 flex items-start gap-2">
-            <AlertCircle size={14} className="mt-0.5 shrink-0" />
-            {rdErr}
-          </div>
-        )}
-
-        <div className="flex items-center gap-3">
-          <button onClick={saveRD} disabled={rdStatus === 'saving'}
-            className="px-5 py-2 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600 disabled:opacity-50 transition">
-            {rdStatus === 'saving' ? 'Saving...' : 'Save'}
-          </button>
-          {rdStatus === 'saved' && <span className="text-sm text-green-600 flex items-center gap-1"><CheckCircle size={14} /> Saved</span>}
-        </div>
-
-        {rdConnected && (
-          <div className="mt-5 pt-5 border-t">
-            <div className="text-sm font-medium text-gray-800">Scheduled sync</div>
-            <div className="text-xs text-gray-400 mt-0.5">The Apify actor runs daily and discovers any active restaurant with credentials. New files show up under <span className="font-medium">AI Automation → portal</span> once processed.</div>
-          </div>
-        )}
       </div>
 
       <div className="bg-white rounded-xl border p-6 mb-6">
