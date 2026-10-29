@@ -79,6 +79,13 @@ export default function UploadPage() {
   // spelling per supplier (no "RESTAURANT DEPOT" vs "Restaurant Depot"
   // fragmentation) and to detect genuinely new suppliers.
   const [vendorCanon, setVendorCanon] = useState<Map<string, string>>(new Map())
+  // Per-supplier category memory: what this restaurant's past approved
+  // invoices from the same supplier called each item. A supplier's own
+  // naming is the ground truth — repeat items inherit their remembered
+  // category in the preview, so nobody hand-writes per-supplier rules,
+  // and every correction the owner saves teaches the next invoice.
+  const [categoryMemory, setCategoryMemory] = useState<Map<string, string>>(new Map())
+  const memoryAppliedRef = useRef<string>('')
   const inputRef = useRef<HTMLInputElement>(null)
   const [scannerOpen, setScannerOpen] = useState(false)
 
@@ -97,6 +104,35 @@ export default function UploadPage() {
         if (h.vendor && !map.has(normKey(h.vendor))) map.set(normKey(h.vendor), h.vendor)
       })
       if (!cancelled) setVendorCanon(map)
+
+      // Category memory from the 60 most recent approved invoices.
+      const { data: recent } = await supabase
+        .from('invoice_headers')
+        .select('id, vendor')
+        .eq('restaurant_id', restaurantId)
+        .neq('review_status', 'needs_review')
+        .order('invoice_date', { ascending: false })
+        .limit(60)
+      if (recent && recent.length > 0) {
+        const vendorById = new Map(recent.map((h) => [h.id, h.vendor || '']))
+        const rank = new Map(recent.map((h, i) => [h.id, i]))
+        const { data: lines } = await supabase
+          .from('invoice_lines')
+          .select('header_id, item_name, category')
+          .in('header_id', recent.map((h) => h.id))
+        const mem = new Map<string, string>()
+        const ordered = [...(lines || [])].sort(
+          (a, b) => (rank.get(a.header_id) ?? 0) - (rank.get(b.header_id) ?? 0)
+        )
+        for (const l of ordered) {
+          if (!l.category || l.category === 'Other') continue
+          const v = normKey(vendorById.get(l.header_id) || '')
+          if (!v || v === 'unknown') continue
+          const key = `${v}|${normKey(l.item_name || '')}`
+          if (!mem.has(key)) mem.set(key, l.category)
+        }
+        if (!cancelled) setCategoryMemory(mem)
+      }
     })()
     return () => {
       cancelled = true
@@ -104,7 +140,7 @@ export default function UploadPage() {
   }, [restaurantId])
 
   function reset() {
-    setFileName(''); setWatchId(null); setParsed(null); setVendorEdit(''); setStatus('idle'); setErrorMsg(''); setSavedId(null); setSavedReview(false)
+    setFileName(''); setWatchId(null); setParsed(null); setVendorEdit(''); setStatus('idle'); setErrorMsg(''); setSavedId(null); setSavedReview(false); memoryAppliedRef.current = ''
   }
 
   // Parsing runs in the activity store (dashboard layout), NOT in
@@ -293,6 +329,39 @@ export default function UploadPage() {
         : prev
     )
   }
+
+  // Apply the per-supplier category memory to a fresh parse: any item
+  // this supplier has sold this restaurant before inherits the
+  // category it was saved with last time.
+  function applyCategoryMemory(p: ParsedInvoice, mem: Map<string, string>): ParsedInvoice {
+    if (mem.size === 0) return p
+    const vKey = normKey(p.vendor || '')
+    if (!vKey || vKey === 'unknown') return p
+    let changed = false
+    const items = p.items.map((it) => {
+      const remembered =
+        mem.get(`${vKey}|${normKey(it.item_name || '')}`) ||
+        mem.get(`${vKey}|${normKey(it.display_name || '')}`)
+      if (remembered && remembered !== 'Other' && remembered !== it.category) {
+        changed = true
+        return { ...it, category: remembered }
+      }
+      return it
+    })
+    return changed ? { ...p, items } : p
+  }
+
+  // Once per adopted parse, when the memory is available (it usually
+  // loads at page open; if it lands after the parse, this still runs).
+  useEffect(() => {
+    if (categoryMemory.size === 0) return
+    if (!parsed || status !== 'done') return
+    const id = adoptedRef.current
+    if (!id || memoryAppliedRef.current === id) return
+    memoryAppliedRef.current = id
+    setParsed((prev) => (prev ? applyCategoryMemory(prev, categoryMemory) : prev))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoryMemory, parsed, status])
 
   const netTotal = parsed ? parsed.items.reduce((s, i) => s + (i.total || 0), 0) : 0
   const credits = parsed ? parsed.items.filter(i => (i.total || 0) < 0) : []
