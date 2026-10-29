@@ -29,6 +29,12 @@ export default function SettingsPage() {
   const [oauthConnected, setOauthConnected] = useState(false)
   const [cloverBanner, setCloverBanner] = useState<string | null>(null)
 
+  // Billing state
+  const [billingConfigured, setBillingConfigured] = useState(false)
+  const [hasSubscription, setHasSubscription] = useState(false)
+  const [billingBusy, setBillingBusy] = useState(false)
+  const [billingMsg, setBillingMsg] = useState<string | null>(null)
+
   // Restaurant Depot state
   const [rdEmail, setRdEmail] = useState('')
   const [rdPassword, setRdPassword] = useState('')
@@ -127,8 +133,61 @@ export default function SettingsPage() {
     setTimeout(() => setStatus('idle'), 3000)
   }
 
-  async function triggerSync() {
-    setSyncing(true); setSyncMsg('')
+  // Billing: server configuration + whether this restaurant already
+  // has a subscription, plus the banner after a checkout round-trip.
+  useEffect(() => {
+    if (!restaurantId) return
+    fetch(`/api/billing/status?restaurant_id=${restaurantId}`)
+      .then((r) => r.json())
+      .then((j) => {
+        setBillingConfigured(!!j.configured)
+        setHasSubscription(!!j.has_subscription)
+      })
+      .catch(() => {})
+    const b = new URLSearchParams(window.location.search).get('billing')
+    if (b === 'success') setBillingMsg('Subscription started — welcome aboard.')
+    if (b === 'cancelled') setBillingMsg('Checkout was cancelled. Nothing was charged.')
+  }, [restaurantId])
+
+  async function startCheckout() {
+    if (!restaurantId) return
+    setBillingBusy(true)
+    setBillingMsg(null)
+    try {
+      const resp = await fetch('/api/billing/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ restaurant_id: restaurantId }),
+      })
+      const json = await resp.json()
+      if (!resp.ok || !json.url) throw new Error(json.error || 'Checkout failed')
+      window.location.href = json.url
+    } catch (e: any) {
+      setBillingMsg(e.message || 'Checkout failed')
+      setBillingBusy(false)
+    }
+  }
+
+  async function openPortal() {
+    if (!restaurantId) return
+    setBillingBusy(true)
+    setBillingMsg(null)
+    try {
+      const resp = await fetch('/api/billing/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ restaurant_id: restaurantId }),
+      })
+      const json = await resp.json()
+      if (!resp.ok || !json.url) throw new Error(json.error || 'Portal failed')
+      window.location.href = json.url
+    } catch (e: any) {
+      setBillingMsg(e.message || 'Portal failed')
+      setBillingBusy(false)
+    }
+  }
+
+  async function triggerSync() {    setSyncing(true); setSyncMsg('')
     const resp = await fetch('/api/clover-sync', { method: 'POST', body: JSON.stringify({ restaurant_id: restaurantId }), headers: { 'Content-Type': 'application/json' } })
     const json = await resp.json()
     setSyncMsg(resp.ok ? `Synced ${json.count} sales records.` : json.error || 'Sync failed')
@@ -353,6 +412,72 @@ export default function SettingsPage() {
             </div>
             {syncMsg && <p className="text-sm text-gray-600 mt-2">{syncMsg}</p>}
           </div>
+        )}
+      </div>
+
+      <div className="bg-white rounded-xl border p-6 mb-6">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+            <CreditCard size={18} className="text-purple-600" />
+          </div>
+          <div>
+            <div className="font-semibold text-gray-900 flex items-center gap-2">
+              Billing
+              {(() => {
+                const s = current?.subscription_status ?? 'trialing'
+                const label = s.replace('_', ' ')
+                const cls =
+                  s === 'active'
+                    ? 'bg-green-100 text-green-700'
+                    : s === 'past_due'
+                      ? 'bg-red-100 text-red-700'
+                      : s === 'canceled'
+                        ? 'bg-gray-100 text-gray-600'
+                        : 'bg-amber-100 text-amber-700'
+                return (
+                  <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${cls}`}>
+                    {label}
+                  </span>
+                )
+              })()}
+            </div>
+            <div className="text-sm text-gray-500">
+              {current?.trial_ends_at
+                ? `Free trial ${new Date(current.trial_ends_at) > new Date() ? 'ends' : 'ended'} ${new Date(current.trial_ends_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · per-location monthly plan`
+                : 'Per-location monthly plan'}
+            </div>
+          </div>
+        </div>
+
+        {billingMsg && (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            {billingMsg}
+          </div>
+        )}
+
+        {!billingConfigured ? (
+          <p className="text-sm text-gray-400">Payments aren&apos;t switched on yet.</p>
+        ) : hasSubscription ? (
+          <button
+            onClick={openPortal}
+            disabled={billingBusy}
+            className="px-5 py-2 bg-white border rounded-lg text-sm text-gray-700 font-medium hover:bg-gray-50 disabled:opacity-50 transition"
+          >
+            {billingBusy ? 'Opening…' : 'Manage billing'}
+          </button>
+        ) : (
+          <button
+            onClick={startCheckout}
+            disabled={billingBusy}
+            className="px-5 py-2 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600 disabled:opacity-50 transition"
+          >
+            {billingBusy ? 'Opening checkout…' : 'Subscribe'}
+          </button>
+        )}
+        {billingConfigured && (
+          <p className="text-xs text-gray-400 mt-3">
+            Secure checkout and card management run on Stripe. Cancel anytime from the billing portal.
+          </p>
         )}
       </div>
 
