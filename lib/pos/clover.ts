@@ -1,4 +1,5 @@
 import type { PosAdapter, PosSaleRow } from './types'
+import { computeDailySales, type CloverOrder as RefCloverOrder, type DailySales } from '../clover'
 
 export interface CloverCreds {
   clover_merchant_id: string
@@ -90,4 +91,55 @@ export const cloverAdapter: PosAdapter<CloverCreds> = {
     }
     return rows
   },
+}
+
+/**
+ * Daily sales aggregates for the same order window — the food-cost
+ * page, Home KPIs and the assistant read daily_sales, NOT pos_sales.
+ * Uses the reference math (computeDailySales in lib/clover.ts:
+ * net = gross − discounts − refunds, tax excluded) so the in-app
+ * sync and the old sync script can never disagree.
+ *
+ * Orders are bucketed by createdTime (server time) so the
+ * aggregates always agree with pos_sales' sale_date. Real POS
+ * devices stamp clientCreatedTime == createdTime; API-seeded test
+ * orders set clientCreatedTime arbitrarily, which would scatter
+ * the aggregates onto dates nothing else recognizes.
+ */
+export async function fetchCloverDailySales(
+  creds: CloverCreds,
+  sinceTs: number
+): Promise<DailySales[]> {
+  if (!creds.clover_merchant_id || !creds.clover_api_key) {
+    throw new Error('Clover credentials missing')
+  }
+  const apiHost =
+    creds.clover_env === 'sandbox'
+      ? 'https://apisandbox.dev.clover.com'
+      : 'https://api.clover.com'
+  const authHeader = 'Bearer ' + creds.clover_api_key
+
+  const fetchOrders = async (expand: string): Promise<RefCloverOrder[]> => {
+    const url = `${apiHost}/v3/merchants/${creds.clover_merchant_id}/orders?filter=createdTime>=${sinceTs}&expand=${expand}&limit=1000`
+    const resp = await fetch(url, {
+      headers: { Authorization: authHeader, Accept: 'application/json' },
+    })
+    if (!resp.ok) {
+      throw new Error(`Clover API ${resp.status}: ${await resp.text()}`)
+    }
+    const body = (await resp.json()) as { elements?: RefCloverOrder[] }
+    return body.elements ?? []
+  }
+
+  let orders: RefCloverOrder[]
+  try {
+    orders = await fetchOrders('lineItems,discounts,payments,refunds')
+  } catch {
+    // Some tokens can't expand refunds — retry without it (refunds
+    // then read as zero) rather than failing the whole sync.
+    orders = await fetchOrders('lineItems,discounts,payments')
+  }
+  return computeDailySales(
+    orders.map((o) => ({ ...o, clientCreatedTime: o.createdTime }))
+  )
 }

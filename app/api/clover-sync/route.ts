@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { cloverAdapter, type CloverCreds } from '@/lib/pos/clover'
+import { cloverAdapter, fetchCloverDailySales, type CloverCreds } from '@/lib/pos/clover'
 import { decryptToken } from '@/lib/token-crypto'
 import { cloverEnv } from '@/lib/clover-oauth'
 
@@ -105,5 +105,47 @@ export async function POST(req: NextRequest) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json({ count: rows.length })
+  // The food-cost page, Home KPIs and the assistant read DAILY
+  // aggregates (daily_sales) — a table the old sync script maintained
+  // but this route never did, so a successful sync still left those
+  // pages reading an empty table. Compute the aggregates from the
+  // same orders and replace the window's rows.
+  let dailyDays = 0
+  try {
+    const daily = await fetchCloverDailySales(creds, sinceTs)
+    if (daily.length > 0) {
+      const { error: dailyDelError } = await sb
+        .from('daily_sales')
+        .delete()
+        .eq('restaurant_id', restaurant_id)
+        .eq('source', 'clover')
+        .gte('date', sinceDate)
+      if (dailyDelError) {
+        return NextResponse.json({ error: dailyDelError.message }, { status: 500 })
+      }
+      const { error: dailyError } = await sb.from('daily_sales').insert(
+        daily.map((d) => ({
+          restaurant_id,
+          date: d.date,
+          gross_cents: d.grossCents,
+          discount_cents: d.discountCents,
+          refund_cents: d.refundCents,
+          net_cents: d.netCents,
+          order_count: d.orderCount,
+          source: 'clover',
+        }))
+      )
+      if (dailyError) {
+        return NextResponse.json({ error: dailyError.message }, { status: 500 })
+      }
+      dailyDays = daily.length
+    }
+  } catch (e) {
+    return NextResponse.json(
+      { error: `Daily sales aggregation failed: ${(e as Error).message}` },
+      { status: 502 }
+    )
+  }
+
+  return NextResponse.json({ count: rows.length, daily_days: dailyDays })
 }
