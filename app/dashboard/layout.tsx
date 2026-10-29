@@ -17,16 +17,19 @@ import {
   ChevronsUpDown,
   Check,
   Menu,
+  ClipboardCheck,
 } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
 import { useRestaurant } from '@/lib/restaurant'
 import AddRestaurantButton from '@/components/AddRestaurantButton'
+import ReviewBadge from '@/components/ReviewBadge'
 
 // Live nav items — real routes only.
 const mainNav = [
   { href: '/dashboard', label: 'Home', icon: House, exact: true },
   { href: '/dashboard/price-tracker', label: 'Price Tracker', icon: ChartLine },
   { href: '/dashboard/invoices', label: 'Invoices', icon: FileText },
+  { href: '/dashboard/review', label: 'Review', icon: ClipboardCheck, badge: 'review' },
   { href: '/dashboard/food-cost', label: 'Food cost %', icon: ChartColumn },
 ]
 // Roadmap items — shown in the nav for discoverability but not yet wired to a
@@ -194,12 +197,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Main nav */}
         <nav className="flex flex-col gap-0.5 text-[14px]">
-          {mainNav.map(({ href, label, icon: Icon, exact }) => {
+          {mainNav.map(({ href, label, icon: Icon, exact, badge }) => {
             const active = exact ? pathname === href : pathname.startsWith(href)
             return (
               <Link key={href} href={href} className={`${navBase} ${active ? navActive : navIdle}`}>
                 <Icon size={18} />
                 {label}
+                {badge === 'review' && <ReviewBadge />}
               </Link>
             )
           })}

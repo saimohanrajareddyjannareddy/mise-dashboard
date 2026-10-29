@@ -36,6 +36,42 @@ const CATEGORY_COLORS: Record<string, string> = {
   Other: 'bg-amber-100 text-amber-700',
 }
 
+/*
+ * Reconciliation checks on an extraction. Any failure flags the invoice
+ * for the human review queue at save time — this is how AI misreads
+ * (wrong totals, dropped lines) get caught instead of landing silently
+ * in the books. Tolerances are loose on purpose: flag real mismatches,
+ * not rounding noise.
+ */
+function reviewFlagsFor(p: ParsedInvoice): string[] {
+  const flags: string[] = []
+  const lineSum = p.items.reduce((s, i) => s + (i.total || 0), 0)
+  if (p.total != null && Math.abs(lineSum - p.total) > Math.max(0.05, Math.abs(p.total) * 0.01)) {
+    flags.push(
+      `Line items add up to $${lineSum.toFixed(2)} but the invoice total says $${p.total.toFixed(2)}`
+    )
+  }
+  const badLines = p.items.filter(
+    (i) =>
+      i.quantity > 0 &&
+      i.unit_price > 0 &&
+      Math.abs(i.quantity * i.unit_price - (i.total || 0)) >
+        Math.max(0.05, Math.abs(i.total || 0) * 0.02)
+  )
+  if (badLines.length > 0) {
+    flags.push(
+      `${badLines.length} line${badLines.length > 1 ? 's have' : ' has'} qty × price that doesn't match the line total`
+    )
+  }
+  if (!p.vendor || p.vendor.trim().toLowerCase() === 'unknown') {
+    flags.push('Supplier name could not be read')
+  }
+  if (!p.invoice_date) {
+    flags.push('Invoice date could not be read')
+  }
+  return flags
+}
+
 function downloadCSVTemplate() {
   const headers = ['item_name', 'display_name', 'category', 'quantity', 'purchase_unit', 'unit_price', 'total', 'invoice_date', 'invoice_number', 'vendor']
   const example = ['CHIX BRST BNLS', 'Chicken Breast Boneless', 'Protein', '40', 'lb', '3.49', '139.60', '2024-04-20', 'INV-001', 'Restaurant Depot']
@@ -55,10 +91,11 @@ export default function UploadPage() {
   const [errorMsg, setErrorMsg] = useState('')
   const [parsed, setParsed] = useState<ParsedInvoice | null>(null)
   const [savedId, setSavedId] = useState<string | null>(null)
+  const [savedReview, setSavedReview] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   function reset() {
-    setFile(null); setParsed(null); setStatus('idle'); setErrorMsg(''); setSavedId(null)
+    setFile(null); setParsed(null); setStatus('idle'); setErrorMsg(''); setSavedId(null); setSavedReview(false)
   }
 
   async function parseFile(f: File) {
@@ -103,20 +140,39 @@ export default function UploadPage() {
         .single()
       if (fErr || !fileRow) throw new Error(fErr?.message || 'Failed to register file')
 
-      const { data: header, error: hErr } = await supabase
+      // Reconciliation check: extractions that don't add up go to the
+      // review queue instead of silently landing in the books.
+      const flags = reviewFlagsFor(parsed)
+      const headerPayload: Record<string, unknown> = {
+        restaurant_id: restaurantId,
+        file_id: fileRow.id,
+        vendor: parsed.vendor || 'Unknown',
+        invoice_number: parsed.invoice_number,
+        invoice_date: parsed.invoice_date,
+        subtotal: parsed.subtotal,
+        tax: parsed.tax,
+        total: parsed.total ?? parsed.items.reduce((s, i) => s + (i.total || 0), 0),
+      }
+      if (flags.length > 0) {
+        headerPayload.review_status = 'needs_review'
+        headerPayload.review_reason = flags.join('; ')
+      }
+      let { data: header, error: hErr } = await supabase
         .from('invoice_headers')
-        .insert({
-          restaurant_id: restaurantId,
-          file_id: fileRow.id,
-          vendor: parsed.vendor || 'Unknown',
-          invoice_number: parsed.invoice_number,
-          invoice_date: parsed.invoice_date,
-          subtotal: parsed.subtotal,
-          tax: parsed.tax,
-          total: parsed.total ?? parsed.items.reduce((s, i) => s + (i.total || 0), 0),
-        })
+        .insert(headerPayload)
         .select('id')
         .single()
+      // Until sql/010_review_queue.sql runs, the review columns don't
+      // exist — retry without them so uploads never break.
+      if (hErr && hErr.message.includes('review_status')) {
+        delete headerPayload.review_status
+        delete headerPayload.review_reason
+        ;({ data: header, error: hErr } = await supabase
+          .from('invoice_headers')
+          .insert(headerPayload)
+          .select('id')
+          .single())
+      }
       if (hErr || !header) throw new Error(hErr?.message || 'Failed to save header')
 
       const lineItems = parsed.items.map(item => ({
@@ -135,7 +191,7 @@ export default function UploadPage() {
       const { error: lErr } = await supabase.from('invoice_lines').insert(lineItems)
       if (lErr) throw new Error(lErr.message)
 
-      setSavedId(header.id); setStatus('saved')
+      setSavedId(header.id); setSavedReview(flags.length > 0); setStatus('saved')
     } catch (e: any) {
       setStatus('error'); setErrorMsg(e.message || 'Save failed')
     }
@@ -159,6 +215,32 @@ export default function UploadPage() {
       </div>
 
       {status === 'saved' && savedId ? (
+        savedReview ? (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 flex items-start gap-4">
+            <AlertCircle size={24} className="text-amber-500 mt-0.5 shrink-0" />
+            <div>
+              <div className="font-semibold text-amber-800 mb-1">Saved — flagged for review</div>
+              <div className="text-sm text-amber-700 mb-3">
+                Some numbers on this invoice didn&apos;t add up, so it&apos;s in the review queue instead of
+                straight into your books. Check it against the original when you get a moment.
+              </div>
+              <div className="flex gap-3">
+                <a href="/dashboard/review"
+                  className="px-4 py-2 bg-amber-500 text-white rounded-lg text-sm hover:bg-amber-600 transition">
+                  Go to Review Queue
+                </a>
+                <a href={`/dashboard/invoices/${savedId}`}
+                  className="px-4 py-2 bg-white border border-amber-300 text-amber-700 rounded-lg text-sm hover:bg-amber-50 transition">
+                  View Invoice
+                </a>
+                <button onClick={reset}
+                  className="px-4 py-2 bg-white border border-amber-300 text-amber-700 rounded-lg text-sm hover:bg-amber-50 transition">
+                  Upload Another
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
         <div className="bg-green-50 border border-green-200 rounded-xl p-6 flex items-start gap-4">
           <CheckCircle size={24} className="text-green-500 mt-0.5 shrink-0" />
           <div>
@@ -176,6 +258,7 @@ export default function UploadPage() {
             </div>
           </div>
         </div>
+        )
       ) : status === 'idle' || (!file && status !== 'error') ? (
         <div
           onDragOver={e => { e.preventDefault(); setDragging(true) }}
@@ -236,6 +319,25 @@ export default function UploadPage() {
               </div>
             </div>
           </div>
+
+          {(() => {
+            const flags = reviewFlagsFor(parsed)
+            if (flags.length === 0) return null
+            return (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 flex items-start gap-3">
+                <AlertCircle size={18} className="text-amber-500 mt-0.5 shrink-0" />
+                <div className="text-sm">
+                  <div className="font-medium text-amber-800 mb-1">This one needs a human look</div>
+                  <ul className="text-amber-700 list-disc list-inside space-y-0.5">
+                    {flags.map((f, i) => (
+                      <li key={i}>{f}</li>
+                    ))}
+                  </ul>
+                  <div className="text-amber-600 mt-1">Saving will send it to the review queue.</div>
+                </div>
+              </div>
+            )
+          })()}
 
           <div className="bg-white rounded-xl border overflow-hidden mb-6">
             <table className="w-full text-sm">
