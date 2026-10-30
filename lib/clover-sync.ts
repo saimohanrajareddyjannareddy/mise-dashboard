@@ -73,11 +73,14 @@ export async function syncRestaurantClover(
   // OAuth token wins when present; the manual plaintext key is the
   // fallback for restaurants that haven't reconnected yet.
   let apiToken: string | null = settings?.clover_api_key ?? null
-  let env: string | undefined
+  // The Clover environment is a property of OUR deployment, not of
+  // the token: a manual sandbox token must still hit the sandbox
+  // host (previously env was only set on the OAuth branch, which
+  // sent manual sandbox tokens to the production API).
+  const env: string | undefined = cloverEnv()
   if (settings?.clover_token_enc) {
     try {
       apiToken = decryptToken(settings.clover_token_enc)
-      env = cloverEnv()
     } catch {
       throw new CloverSyncError(
         'Stored Clover token could not be decrypted (TOKEN_ENCRYPTION_KEY missing or changed)',
