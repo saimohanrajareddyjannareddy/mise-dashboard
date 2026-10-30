@@ -102,7 +102,7 @@ export default function AssistantPanel({ open, onClose }: { open: boolean; onClo
       <div className="fixed inset-0 z-40 bg-black/20" onClick={onClose} />
       <div className="fixed right-0 top-0 z-50 flex h-full w-[390px] max-w-[92vw] flex-col bg-white shadow-2xl">
         <div className="flex items-center gap-2 border-b px-4 py-3.5">
-          <Sparkles size={16} className="text-amber-500" />
+          <Sparkles size={16} className="text-pop" />
           <div className="min-w-0 flex-1">
             <div className="text-sm font-semibold text-gray-900">Ask InvoiceIQ</div>
             <div className="truncate text-[11px] text-gray-400">

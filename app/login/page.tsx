@@ -42,13 +42,13 @@ export default function LoginPage() {
     <div className="grid min-h-screen grid-cols-1 font-sans text-ink md:grid-cols-2">
       {/* LEFT: form */}
       <div className="relative flex flex-col bg-cream px-6 py-10 md:px-14">
-        <div className="flex items-baseline gap-px font-serif text-[28px] tracking-[-0.5px] text-forest">
+        <div className="flex items-baseline gap-px font-display text-[27px] font-extrabold tracking-[-0.5px] text-ink">
           <span>InvoiceIQ</span>
           <span className="text-[32px] leading-[0] text-terracotta">.</span>
         </div>
 
         <div className="mx-auto my-auto w-full max-w-[380px] self-center py-10">
-          <h1 className="mb-2 font-serif text-[52px] font-normal leading-none tracking-[-1px] text-ink">
+          <h1 className="mb-2 font-display text-[50px] font-extrabold leading-none tracking-[-1px] text-ink">
             Welcome back.
           </h1>
           <p className="mb-[34px] text-[16px] text-ink-3">Your invoices are waiting.</p>
@@ -107,7 +107,7 @@ export default function LoginPage() {
 
           <p className="mt-[30px] text-center text-[14px] text-ink-3">
             New to InvoiceIQ?{' '}
-            <Link href="/signup" className="font-semibold text-forest hover:text-terracotta">
+            <Link href="/signup" className="font-semibold text-pop hover:text-pop-hover">
               Create an account
             </Link>
           </p>
@@ -115,7 +115,7 @@ export default function LoginPage() {
       </div>
 
       {/* RIGHT: visual (design-only, hidden on mobile) */}
-      <div className="relative hidden flex-col justify-center bg-forest px-14 py-10 text-[#EDEFE8] md:flex">
+      <div className="relative hidden flex-col justify-center bg-coal px-14 py-10 text-[#EDEFE8] md:flex">
         <div className="mx-auto w-full max-w-[440px]">
           {/* mini price tracker */}
           <div className="relative rounded-[16px] border border-[rgba(255,253,249,.12)] bg-[rgba(255,253,249,.05)] p-[22px]">
@@ -125,7 +125,7 @@ export default function LoginPage() {
               <line x1="0" y1="45" x2="400" y2="45" stroke="rgba(255,253,249,.08)" strokeWidth="1" />
               <line x1="0" y1="90" x2="400" y2="90" stroke="rgba(255,253,249,.08)" strokeWidth="1" />
               <line x1="0" y1="135" x2="400" y2="135" stroke="rgba(255,253,249,.08)" strokeWidth="1" />
-              <polyline points="8,128 74,124 140,118 206,104 272,88 338,54 394,32" fill="none" stroke="#D97742" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+              <polyline points="8,128 74,124 140,118 206,104 272,88 338,54 394,32" fill="none" stroke="#EC4899" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
               <circle cx="394" cy="32" r="5" fill="#D97742" />
               <polyline points="8,92 74,96 140,90 206,94 272,88 338,92 394,89" fill="none" stroke="#8FA79A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
               <polyline points="8,80 74,88 140,100 206,110 272,126 338,138 394,150" fill="none" stroke="#C7D6CD" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />

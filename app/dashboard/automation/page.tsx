@@ -180,7 +180,7 @@ export default function AutomationPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Activity size={22} className="text-amber-500" />
+            <Activity size={22} className="text-pop" />
             AI Automation
           </h1>
           <p className="text-gray-500 text-sm">
@@ -198,7 +198,7 @@ export default function AutomationPage() {
 
       <div className="grid grid-cols-4 gap-4">
         <Kpi
-          icon={<Activity size={16} className="text-amber-500" />}
+          icon={<Activity size={16} className="text-pop" />}
           label="Last 7 days"
           value={weekCount.toString()}
           sub="files received"
@@ -263,7 +263,7 @@ export default function AutomationPage() {
                           v.days_since > 7
                             ? 'text-red-600 font-medium'
                             : v.days_since > 2
-                              ? 'text-amber-600'
+                              ? 'text-pop'
                               : 'text-green-600'
                         }
                       >

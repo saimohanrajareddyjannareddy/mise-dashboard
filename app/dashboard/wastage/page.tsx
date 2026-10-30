@@ -94,7 +94,7 @@ export default function WastagePage() {
 
       {!cloverConnected && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 flex items-start gap-3 mb-6">
-          <Link2 size={18} className="text-amber-500 mt-0.5 shrink-0" />
+          <Link2 size={18} className="text-pop mt-0.5 shrink-0" />
           <div>
             <div className="font-semibold text-amber-800 mb-1">Connect Clover POS to unlock full wastage tracking</div>
             <div className="text-sm text-amber-700 mb-3">

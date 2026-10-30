@@ -112,7 +112,7 @@ export default function ReviewPage() {
     <div className="p-4 sm:p-8">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-1 flex items-center gap-2">
-          <ClipboardCheck className="text-amber-500" /> Review Queue
+          <ClipboardCheck className="text-pop" /> Review Queue
         </h1>
         <p className="text-gray-500 text-sm">
           Uploads whose numbers don&apos;t add up — and <span className="font-medium text-gray-700">every invoice that arrives by email</span> —
@@ -122,7 +122,7 @@ export default function ReviewPage() {
 
       {setupPending ? (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 flex items-start gap-4">
-          <AlertTriangle size={22} className="text-amber-500 mt-0.5 shrink-0" />
+          <AlertTriangle size={22} className="text-pop mt-0.5 shrink-0" />
           <div>
             <div className="font-semibold text-amber-800 mb-1">One database step left</div>
             <p className="text-sm text-amber-700">

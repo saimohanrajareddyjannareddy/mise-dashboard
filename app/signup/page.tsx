@@ -60,7 +60,7 @@ export default function SignupPage() {
     <div className="grid min-h-screen grid-cols-1 font-sans text-ink md:grid-cols-2">
       {/* LEFT: form */}
       <div className="relative flex flex-col bg-cream px-6 py-10 md:px-14">
-        <div className="flex items-baseline gap-px font-serif text-[28px] tracking-[-0.5px] text-forest">
+        <div className="flex items-baseline gap-px font-display text-[27px] font-extrabold tracking-[-0.5px] text-ink">
           <span>InvoiceIQ</span>
           <span className="text-[32px] leading-[0] text-terracotta">.</span>
         </div>
@@ -68,7 +68,7 @@ export default function SignupPage() {
         <div className="mx-auto my-auto w-full max-w-[380px] self-center py-10">
           {confirmSent ? (
             <>
-              <h1 className="mb-2 font-serif text-[44px] font-normal leading-none tracking-[-1px] text-ink">
+              <h1 className="mb-2 font-display text-[42px] font-extrabold leading-none tracking-[-1px] text-ink">
                 Check your email.
               </h1>
               <p className="mb-[34px] text-[16px] text-ink-3">
@@ -85,7 +85,7 @@ export default function SignupPage() {
             </>
           ) : (
             <>
-              <h1 className="mb-2 font-serif text-[44px] font-normal leading-none tracking-[-1px] text-ink">
+              <h1 className="mb-2 font-display text-[42px] font-extrabold leading-none tracking-[-1px] text-ink">
                 Start your trial.
               </h1>
               <p className="mb-[34px] text-[16px] text-ink-3">
@@ -156,7 +156,7 @@ export default function SignupPage() {
       </div>
 
       {/* RIGHT: visual (hidden on mobile) */}
-      <div className="relative hidden flex-col justify-center bg-forest px-14 py-10 text-[#EDEFE8] md:flex">
+      <div className="relative hidden flex-col justify-center bg-coal px-14 py-10 text-[#EDEFE8] md:flex">
         <div className="mx-auto w-full max-w-[440px]">
           <p className="mb-[26px] font-serif text-[34px] font-normal leading-[1.25] text-cream">
             Know your food cost before it eats your margin.

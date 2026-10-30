@@ -478,7 +478,7 @@ export default function UploadPage() {
       {status === 'saved' && savedId ? (
         savedReview ? (
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 flex items-start gap-4">
-            <AlertCircle size={24} className="text-amber-500 mt-0.5 shrink-0" />
+            <AlertCircle size={24} className="text-pop mt-0.5 shrink-0" />
             <div>
               <div className="font-semibold text-amber-800 mb-1">Saved — flagged for review</div>
               <div className="text-sm text-amber-700 mb-3">
@@ -543,7 +543,7 @@ export default function UploadPage() {
             accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.xlsx,.xls,.csv"
             className="hidden"
             onChange={e => { parseFiles(Array.from(e.target.files || [])); e.target.value = '' }} />
-          <Upload size={40} className={`mx-auto mb-4 ${dragging ? 'text-amber-500' : 'text-gray-300'}`} />
+          <Upload size={40} className={`mx-auto mb-4 ${dragging ? 'text-pop' : 'text-gray-300'}`} />
           <div className="text-gray-700 font-medium mb-1">Drop invoices here or click to browse</div>
           <div className="text-gray-400 text-sm">PDF, PNG, JPG, Excel, CSV — select as many as you like; you will review them one by one</div>
           <button
@@ -588,7 +588,7 @@ export default function UploadPage() {
             <div className="flex items-start justify-between">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <FileText size={16} className="text-amber-500 shrink-0" />
+                  <FileText size={16} className="text-pop shrink-0" />
                   <input
                     value={vendorEdit}
                     onChange={e => setVendorEdit(e.target.value)}
@@ -610,7 +610,7 @@ export default function UploadPage() {
               </div>
               <div className="text-right">
                 <div className="text-xs text-gray-400 uppercase tracking-wide">Net Total</div>
-                <div className="text-2xl font-bold text-amber-500">
+                <div className="text-2xl font-bold text-pop">
                   ${netTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                 </div>
               </div>
@@ -639,7 +639,7 @@ export default function UploadPage() {
             if (flags.length === 0) return null
             return (
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 flex items-start gap-3">
-                <AlertCircle size={18} className="text-amber-500 mt-0.5 shrink-0" />
+                <AlertCircle size={18} className="text-pop mt-0.5 shrink-0" />
                 <div className="text-sm">
                   <div className="font-medium text-amber-800 mb-1">This one needs a human look</div>
                   <ul className="text-amber-700 list-disc list-inside space-y-0.5">
@@ -647,7 +647,7 @@ export default function UploadPage() {
                       <li key={i}>{f}</li>
                     ))}
                   </ul>
-                  <div className="text-amber-600 mt-1">Saving will send it to the review queue.</div>
+                  <div className="text-pop mt-1">Saving will send it to the review queue.</div>
                 </div>
               </div>
             )
@@ -726,7 +726,7 @@ export default function UploadPage() {
             </table>
             </div>
             <button onClick={addItem}
-              className="w-full px-4 py-2.5 text-sm text-amber-600 font-medium hover:bg-amber-50 transition border-t">
+              className="w-full px-4 py-2.5 text-sm text-pop font-medium hover:bg-amber-50 transition border-t">
               + Add a line item
             </button>
           </div>

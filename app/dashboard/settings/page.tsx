@@ -662,7 +662,7 @@ export default function SettingsPage() {
                           href={inv.hosted_invoice_url}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-amber-600 hover:underline"
+                          className="text-pop hover:underline"
                         >
                           View
                         </a>

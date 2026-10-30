@@ -22,8 +22,11 @@
   --color-ink-2: #4a453d;
   --color-ink-3: #6b6459;
   --color-ink-muted: #8a8377;
-  --color-terracotta: #c4642d;
-  --color-terracotta-hover: #d97742;
+  /* Legacy brand-accent token, revalued in the 2026-10-29 reskin:
+     every terracotta class app-wide now renders the pop accent so
+     old and new surfaces can never drift apart again. */
+  --color-terracotta: #ec4899;
+  --color-terracotta-hover: #db2777;
   /* Power-pop accent (2026-10-29 reskin, Sai's direction: black +
      cream + one loud accent, Power Shifter energy) */
   --color-pop: #ec4899;

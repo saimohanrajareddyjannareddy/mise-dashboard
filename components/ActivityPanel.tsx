@@ -132,7 +132,7 @@ export default function ActivityPanel() {
           <div className="fixed inset-0 z-40 bg-black/20" onClick={() => setOpen(false)} />
           <div className="fixed right-0 top-0 z-50 flex h-full w-[330px] max-w-[88vw] flex-col bg-white shadow-2xl">
             <div className="flex items-center gap-2 border-b px-4 py-3.5">
-              <Activity size={16} className="text-amber-500" />
+              <Activity size={16} className="text-pop" />
               <span className="flex-1 text-sm font-semibold text-gray-900">Activity</span>
               {finishedCount > 0 && (
                 <button

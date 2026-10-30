@@ -134,7 +134,7 @@ export default function InvoiceDetailPage() {
           </div>
           <div className="text-right">
             <div className="text-xs text-gray-400 uppercase tracking-wide">Invoice Total</div>
-            <div className="text-3xl font-bold text-amber-500">${Number(header.total).toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+            <div className="text-3xl font-bold text-pop">${Number(header.total).toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
             {credits.length > 0 && (
               <div className="text-sm text-red-500 mt-0.5">
                 Incl. {credits.length} credit{credits.length > 1 ? 's' : ''} (${creditTotal.toFixed(2)})
