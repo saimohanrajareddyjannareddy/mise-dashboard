@@ -298,7 +298,7 @@ export default function SettingsPage() {
       // Via the activity store: visible in the Activity panel too.
       const json = await activity.startCloverSync()
       setSyncMsg(
-        `Synced ${json.count} sales records.${
+        `Synced ${json.count} sales records${json.auth_source ? ` (via ${json.auth_source} token)` : ''}.${
           json.expand_used && json.expand_used !== 'lineItems,discounts,refunds,orderType,payments'
             ? ` Limited fields for this app: ${json.expand_used}`
             : ''

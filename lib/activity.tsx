@@ -56,7 +56,7 @@ type ActivityContextValue = {
   startParse: (file: File) => string
   consumeParse: (id: string) => void
   startEmailScan: () => Promise<ScanResult>
-  startCloverSync: () => Promise<{ count: number; expand_used?: string; fields_missing?: string[] }>
+  startCloverSync: () => Promise<{ count: number; expand_used?: string; fields_missing?: string[]; auth_source?: string }>
   dismiss: (id: string) => void
   clearFinished: () => void
 }
@@ -201,7 +201,7 @@ export function ActivityProvider({ children }: { children: React.ReactNode }) {
     }
   }, [add, update, restaurantId])
 
-  const startCloverSync = useCallback(async (): Promise<{ count: number; expand_used?: string; fields_missing?: string[] }> => {
+  const startCloverSync = useCallback(async (): Promise<{ count: number; expand_used?: string; fields_missing?: string[]; auth_source?: string }> => {
     if (!restaurantId) throw new Error('No restaurant selected')
     const id = add({
       id: crypto.randomUUID(),
@@ -222,7 +222,7 @@ export function ActivityProvider({ children }: { children: React.ReactNode }) {
       update(id, {
         status: 'done',
         finishedAt: Date.now(),
-        detail: `${json.count} sales records synced${
+        detail: `${json.count} sales records synced${json.auth_source ? ` via ${json.auth_source} token` : ''}${
           json.expand_used && json.expand_used !== 'lineItems,discounts,refunds,orderType,payments'
             ? ` · limited fields: ${json.expand_used}`
             : ''
@@ -232,7 +232,7 @@ export function ActivityProvider({ children }: { children: React.ReactNode }) {
             : ''
         }`,
       })
-      return json as { count: number; expand_used?: string; fields_missing?: string[] }
+      return json as { count: number; expand_used?: string; fields_missing?: string[]; auth_source?: string }
     } catch (e: any) {
       update(id, {
         status: 'error',

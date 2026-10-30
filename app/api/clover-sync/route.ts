@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
       breakdown_error: r.breakdownError,
       expand_used: r.expandUsed,
       fields_missing: r.fieldsMissing,
+      auth_source: r.authSource,
     })
   } catch (e) {
     if (e instanceof CloverSyncError) {

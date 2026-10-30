@@ -33,6 +33,8 @@ export interface CloverSyncResult {
   expandUsed: string | null
   /** Breakdown data Clover didn't return (e.g. 'channel', 'payment'). */
   fieldsMissing: string[]
+  /** Which stored credential the sync authenticated with. */
+  authSource: 'oauth' | 'manual'
 }
 
 /**
@@ -73,6 +75,7 @@ export async function syncRestaurantClover(
   // OAuth token wins when present; the manual plaintext key is the
   // fallback for restaurants that haven't reconnected yet.
   let apiToken: string | null = settings?.clover_api_key ?? null
+  const authSource: 'oauth' | 'manual' = settings?.clover_token_enc ? 'oauth' : 'manual'
   // The Clover environment is a property of OUR deployment, not of
   // the token: a manual sandbox token must still hit the sandbox
   // host (previously env was only set on the OAuth branch, which
@@ -113,7 +116,7 @@ export async function syncRestaurantClover(
   }
 
   if (rows.length === 0) {
-    return { count: 0, dailyDays: 0, breakdownRows: 0, breakdownError: null, expandUsed: null, fieldsMissing: [] }
+    return { count: 0, dailyDays: 0, breakdownRows: 0, breakdownError: null, expandUsed: null, fieldsMissing: [], authSource }
   }
 
   // pos_sales has a unique INDEX with coalesce(...) expressions that
@@ -215,5 +218,5 @@ export async function syncRestaurantClover(
     )
   }
 
-  return { count: rows.length, dailyDays, breakdownRows, breakdownError, expandUsed, fieldsMissing }
+  return { count: rows.length, dailyDays, breakdownRows, breakdownError, expandUsed, fieldsMissing, authSource }
 }
