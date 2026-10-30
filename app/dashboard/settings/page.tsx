@@ -37,6 +37,10 @@ export default function SettingsPage() {
   const [hasSubscription, setHasSubscription] = useState(false)
   const [billingBusy, setBillingBusy] = useState(false)
   const [billingMsg, setBillingMsg] = useState<string | null>(null)
+  const [billingHistory, setBillingHistory] = useState<{
+    invoices: any[]
+    subscription: any | null
+  } | null>(null)
 
   // Email scan state
   const [mailConfigured, setMailConfigured] = useState(false)
@@ -168,6 +172,12 @@ export default function SettingsPage() {
       .then((j) => {
         setBillingConfigured(!!j.configured)
         setHasSubscription(!!j.has_subscription)
+      })
+      .catch(() => {})
+    fetch(`/api/billing/invoices?restaurant_id=${restaurantId}`)
+      .then((r) => r.json())
+      .then((j) => {
+        if (Array.isArray(j.invoices)) setBillingHistory(j)
       })
       .catch(() => {})
     const b = new URLSearchParams(window.location.search).get('billing')
@@ -607,6 +617,62 @@ export default function SettingsPage() {
           <p className="text-xs text-gray-400 mt-3">
             Secure checkout and card management run on Stripe. Cancel anytime from the billing portal.
           </p>
+        )}
+
+        {billingConfigured && billingHistory && (
+          <div className="mt-6 border-t pt-5">
+            <div className="text-sm font-medium text-gray-700 mb-2">Renewal</div>
+            {billingHistory.subscription ? (
+              <p className="text-sm text-gray-500 mb-5">
+                {billingHistory.subscription.status === 'trialing' &&
+                billingHistory.subscription.trial_end
+                  ? `Free trial ends ${new Date(billingHistory.subscription.trial_end * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} — first charge of $${((billingHistory.subscription.amount ?? 9900) / 100).toFixed(2)} then, renews monthly.`
+                  : billingHistory.subscription.cancel_at_period_end
+                    ? `Cancels on ${new Date(billingHistory.subscription.current_period_end * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} — no further charges.`
+                    : `Renews ${new Date(billingHistory.subscription.current_period_end * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · $${((billingHistory.subscription.amount ?? 9900) / 100).toFixed(2)}/month.`}
+              </p>
+            ) : (
+              <p className="text-sm text-gray-400 mb-5">No subscription yet.</p>
+            )}
+
+            <div className="text-sm font-medium text-gray-700 mb-2">Payment history</div>
+            {billingHistory.invoices.length === 0 ? (
+              <p className="text-sm text-gray-400">
+                No invoices yet — history appears after your first charge.
+              </p>
+            ) : (
+              <div className="divide-y">
+                {billingHistory.invoices.map((inv: any) => (
+                  <div key={inv.id} className="flex items-center justify-between py-2 text-sm">
+                    <span className="text-gray-500">
+                      {new Date(inv.created * 1000).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}{' '}
+                      · {inv.number ?? 'Invoice'}
+                    </span>
+                    <span className="flex items-center gap-3">
+                      <span className="capitalize text-gray-500">{inv.status}</span>
+                      <span className="font-medium text-gray-700">
+                        ${(((inv.amount_paid || inv.total) ?? 0) / 100).toFixed(2)}
+                      </span>
+                      {inv.hosted_invoice_url && (
+                        <a
+                          href={inv.hosted_invoice_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-amber-600 hover:underline"
+                        >
+                          View
+                        </a>
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </div>
 
