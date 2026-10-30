@@ -58,6 +58,16 @@ export default function SettingsPage() {
   const [deleting, setDeleting] = useState(false)
   const [deleteErr, setDeleteErr] = useState<string | null>(null)
 
+  // Delete-account state
+  const [accountEmail, setAccountEmail] = useState<string | null>(null)
+  const [confirmEmailText, setConfirmEmailText] = useState('')
+  const [deletingAccount, setDeletingAccount] = useState(false)
+  const [deleteAccountErr, setDeleteAccountErr] = useState<string | null>(null)
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setAccountEmail(data.user?.email ?? null))
+  }, [])
+
   useEffect(() => {
     if (!restaurantId) return
     ;(async () => {
@@ -358,6 +368,34 @@ export default function SettingsPage() {
       setDeleteErr(e instanceof Error ? e.message : 'Delete failed')
     } finally {
       setDeleting(false)
+    }
+  }
+
+  async function handleDeleteAccount() {
+    if (
+      !accountEmail ||
+      confirmEmailText.trim().toLowerCase() !== accountEmail.toLowerCase()
+    ) {
+      setDeleteAccountErr('Type your account email exactly to confirm.')
+      return
+    }
+    setDeletingAccount(true); setDeleteAccountErr(null)
+    try {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData.session?.access_token
+      if (!token) throw new Error('Sign in required')
+      const resp = await fetch('/api/account/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ confirm_email: confirmEmailText.trim() }),
+      })
+      const json = await resp.json()
+      if (!resp.ok) throw new Error(json.error || 'Account deletion failed')
+      await supabase.auth.signOut()
+      window.location.href = '/login'
+    } catch (e) {
+      setDeleteAccountErr(e instanceof Error ? e.message : 'Account deletion failed')
+      setDeletingAccount(false)
     }
   }
 
@@ -712,6 +750,51 @@ export default function SettingsPage() {
           <p className="text-xs text-gray-400 mt-2">
             Owner role required. Soft alternative: ask Supabase admin to set <code className="font-mono">is_active=false</code>.
           </p>
+        </div>
+
+        <div className="border border-red-100 rounded-lg p-4 bg-red-50/50 mt-4">
+          <div className="font-medium text-gray-900 mb-1">Delete your account</div>
+          <div className="text-sm text-gray-600 mb-3">
+            Permanently delete your InvoiceIQ account
+            {accountEmail && (
+              <>
+                {' '}(<span className="font-semibold text-gray-900">{accountEmail}</span>)
+              </>
+            )}
+            . Every restaurant you <span className="font-semibold text-gray-900">own</span> is
+            deleted with all of its invoices, sales and recipes; you will be removed from any
+            restaurant you only belong to. This cannot be undone.
+          </div>
+
+          <label className="block text-xs font-medium text-gray-600 mb-1.5 uppercase tracking-wide">
+            Type your account email to confirm
+          </label>
+          <input
+            value={confirmEmailText}
+            onChange={(e) => { setConfirmEmailText(e.target.value); setDeleteAccountErr(null) }}
+            placeholder={accountEmail ?? 'you@example.com'}
+            className="w-full border border-red-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-red-400 mb-3"
+          />
+
+          {deleteAccountErr && (
+            <div className="bg-red-100 text-red-700 text-sm p-2.5 rounded mb-3 flex items-start gap-2">
+              <AlertCircle size={14} className="mt-0.5 shrink-0" />
+              {deleteAccountErr}
+            </div>
+          )}
+
+          <button
+            onClick={handleDeleteAccount}
+            disabled={
+              deletingAccount ||
+              !accountEmail ||
+              confirmEmailText.trim().toLowerCase() !== accountEmail.toLowerCase()
+            }
+            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
+          >
+            <Trash2 size={14} />
+            {deletingAccount ? 'Deleting…' : 'Delete account permanently'}
+          </button>
         </div>
       </div>
     </div>
