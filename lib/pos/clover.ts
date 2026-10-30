@@ -37,8 +37,13 @@ export const cloverAdapter: PosAdapter<CloverCreds> = {
     }
 
     const apiHost =
-      creds.clover_env === 'sandbox'
-        ? 'https://apisandbox.dev.clover.com'
+    // Sandbox API calls go to sandbox.dev.clover.com — the same host
+    // that mints the OAuth tokens. The legacy apisandbox gateway
+    // serves base order reads to those tokens but 403s every field
+    // expansion beyond lineItems (proven 2026-10-29: the ladder fell
+    // to bare lineItems with Orders+Payments Read granted + saved).
+    creds.clover_env === 'sandbox'
+        ? 'https://sandbox.dev.clover.com'
         : 'https://api.clover.com'
     const url = `${apiHost}/v3/merchants/${creds.clover_merchant_id}/orders?filter=createdTime>=${sinceTs}&expand=lineItems&limit=1000`
 
@@ -153,7 +158,7 @@ export async function fetchCloverSalesAggregates(
   }
   const apiHost =
     creds.clover_env === 'sandbox'
-      ? 'https://apisandbox.dev.clover.com'
+      ? 'https://sandbox.dev.clover.com'
       : 'https://api.clover.com'
   const authHeader = 'Bearer ' + creds.clover_api_key
 
