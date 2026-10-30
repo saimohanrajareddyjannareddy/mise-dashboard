@@ -8,14 +8,18 @@ import {
   fetchDishSales,
   fetchIngredientCosts,
   fetchRecipes,
+  fetchUsageVariance,
+  formatBaseQty,
   plateCost,
   recipeStatus,
   toBase,
+  unitKind,
   RECIPE_UNITS,
   type CanonicalItem,
   type DishSales,
   type IngredientCost,
   type RecipeLine,
+  type VarianceRow,
 } from '@/lib/recipes'
 
 // Recipes & dish costing (stage 1): dishes come from POS sales,
@@ -46,6 +50,10 @@ export default function RecipesPage() {
   const [saving, setSaving] = useState(false)
   const [drafting, setDrafting] = useState<string | null>(null)
 
+  const [period, setPeriod] = useState<'30d' | 'month' | 'lastMonth'>('30d')
+  const [variance, setVariance] = useState<VarianceRow[]>([])
+  const [varianceError, setVarianceError] = useState<string | null>(null)
+
   const load = useCallback(async () => {
     if (!restaurantId) return
     setLoading(true)
@@ -59,8 +67,28 @@ export default function RecipesPage() {
     setDishes(dishList)
     setRecipes(recipeMap)
     setCosts(costMap)
+
+    // Theoretical-vs-actual for the selected period.
+    const fmt = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    const now = new Date()
+    let start: string
+    let end: string
+    if (period === 'month') {
+      start = fmt(new Date(now.getFullYear(), now.getMonth(), 1))
+      end = fmt(now)
+    } else if (period === 'lastMonth') {
+      start = fmt(new Date(now.getFullYear(), now.getMonth() - 1, 1))
+      end = fmt(new Date(now.getFullYear(), now.getMonth(), 0))
+    } else {
+      start = fmt(new Date(now.getTime() - 29 * 24 * 3600 * 1000))
+      end = fmt(now)
+    }
+    const v = await fetchUsageVariance(supabase, restaurantId, start, end)
+    setVariance(v.rows)
+    setVarianceError(v.error)
     setLoading(false)
-  }, [restaurantId])
+  }, [restaurantId, period])
 
   useEffect(() => {
     load()
@@ -183,6 +211,21 @@ export default function RecipesPage() {
           costs
         )
       : null
+
+  // Variance section data.
+  const canonByName = new Map(canonical.map((c) => [c.name, c]))
+  const varianceMain = variance.filter((v) => v.variancePct != null)
+  const varianceNoRecipe = variance.filter((v) => v.variancePct == null && v.actualBase > 0)
+  const impactOf = (v: VarianceRow): number | null => {
+    const cost = costs.get(v.ingredient)
+    const item = canonByName.get(v.ingredient)
+    if (!cost || cost.costPerBase == null || !item) return null
+    if (unitKind(item.default_unit) !== cost.baseKind) return null
+    return (v.actualBase - v.theoreticalBase) * cost.costPerBase
+  }
+  const hasConfirmedRecipe = [...recipes.values()].some((lines) =>
+    lines.some((l) => l.confidence === 'user_confirmed' || l.confidence === 'ai_inferred')
+  )
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 pb-16 sm:px-6">
@@ -416,6 +459,119 @@ export default function RecipesPage() {
           appeared on a recent invoice, or the invoice line couldn't be matched to the
           ingredient catalog). Costs refresh from your newest invoices automatically.
         </p>
+      )}
+
+      {/* THEORETICAL VS ACTUAL */}
+      {!loading && dishes.length > 0 && (
+        <div className={`${card} mt-6`}>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="font-serif text-[22px] text-ink">Theoretical vs actual usage</h2>
+              <p className="mt-1 max-w-2xl text-[13px] text-ink-muted">
+                What your recipes say you <em>should</em> have used, against what you actually
+                bought. A big positive variance is where money leaks — over-portioning, waste,
+                or a recipe that needs recalibrating. (Purchases, not stock counts — a bulk buy
+                inflates its own period.)
+              </p>
+            </div>
+            <div className="flex gap-1">
+              {(
+                [
+                  ['30d', 'Last 30 days'],
+                  ['month', 'This month'],
+                  ['lastMonth', 'Last month'],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => setPeriod(key)}
+                  className={`rounded-[8px] px-3 py-1.5 text-[12.5px] font-semibold ${
+                    period === key
+                      ? 'bg-forest text-white'
+                      : 'border border-ink/15 text-ink hover:bg-ink/[0.04]'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {varianceError ? (
+            <div className="mt-4 rounded-[10px] border border-terracotta/30 bg-terracotta/[0.08] px-4 py-3 text-[13px] text-ink">
+              <span className="font-semibold text-terracotta">One setup step left:</span> run{' '}
+              <span className="font-mono">sql/008_recipe_usage_variance.sql</span> in the Supabase
+              SQL editor — it creates the usage_variance() function this section reads. Then
+              refresh.
+            </div>
+          ) : varianceMain.length === 0 ? (
+            <p className="mt-4 text-[13.5px] text-ink-muted">
+              {hasConfirmedRecipe
+                ? 'No ingredient overlaps yet between your recipes and purchases in this period.'
+                : 'Nothing to compare yet — draft or confirm a few recipes above (start with your top sellers) and this fills in from your invoices.'}
+            </p>
+          ) : (
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full min-w-[680px] text-left text-[13.5px]">
+                <thead>
+                  <tr className="border-b border-ink/[0.08] text-[12px] uppercase tracking-wide text-ink-muted">
+                    <th className="py-2 pr-3 font-medium">Ingredient</th>
+                    <th className="px-3 py-2 text-right font-medium">Should have used</th>
+                    <th className="px-3 py-2 text-right font-medium">Bought</th>
+                    <th className="px-3 py-2 text-right font-medium">Variance</th>
+                    <th className="py-2 pl-3 text-right font-medium">≈ $ impact</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {varianceMain.map((v) => {
+                    const item = canonByName.get(v.ingredient)
+                    const impact = impactOf(v)
+                    return (
+                      <tr key={v.ingredient} className="border-b border-ink/[0.05]">
+                        <td className="py-2.5 pr-3 font-medium text-ink">{v.ingredient}</td>
+                        <td className="px-3 py-2.5 text-right font-mono text-ink">
+                          {formatBaseQty(v.theoreticalBase, item?.default_unit)}
+                        </td>
+                        <td className="px-3 py-2.5 text-right font-mono text-ink">
+                          {formatBaseQty(v.actualBase, item?.default_unit)}
+                        </td>
+                        <td
+                          className={`px-3 py-2.5 text-right font-mono font-semibold ${
+                            (v.variancePct ?? 0) > 20 ? 'text-terracotta' : 'text-ink'
+                          }`}
+                        >
+                          {(v.variancePct ?? 0) > 0 ? '+' : ''}
+                          {(v.variancePct ?? 0).toFixed(1)}%
+                        </td>
+                        <td
+                          className={`py-2.5 pl-3 text-right font-mono ${
+                            impact != null && impact > 0 ? 'text-terracotta' : 'text-ink'
+                          }`}
+                        >
+                          {impact != null
+                            ? `${impact > 0 ? '+' : '-'}${money(Math.abs(impact))}`
+                            : '—'}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {!varianceError && varianceNoRecipe.length > 0 && (
+            <p className="mt-4 text-[12.5px] text-ink-muted">
+              <span className="font-semibold text-ink">Bought but not in any recipe yet:</span>{' '}
+              {varianceNoRecipe
+                .map(
+                  (v) =>
+                    `${v.ingredient} (${formatBaseQty(v.actualBase, canonByName.get(v.ingredient)?.default_unit)})`
+                )
+                .join(' · ')}
+            </p>
+          )}
+        </div>
       )}
     </div>
   )

@@ -208,3 +208,61 @@ export function recipeStatus(lines: RecipeLine[] | undefined): 'none' | 'ai' | '
   if (!lines || lines.length === 0) return 'none'
   return lines.some((l) => l.confidence === 'user_confirmed') ? 'confirmed' : 'ai'
 }
+
+export interface VarianceRow {
+  ingredient: string
+  theoreticalBase: number
+  actualBase: number
+  variancePct: number | null
+  notes: string | null
+}
+
+/**
+ * Theoretical-vs-actual usage from the usage_variance() SQL
+ * function (sql/008 — must be run in the Supabase editor; until
+ * then this returns an error the page turns into a setup notice).
+ * Quantities are base units (g / ml / each) — display converts
+ * back to each ingredient's usual purchase unit.
+ */
+export async function fetchUsageVariance(
+  sb: SupabaseClient,
+  restaurantId: string,
+  start: string,
+  end: string
+): Promise<{ rows: VarianceRow[]; error: string | null }> {
+  const { data, error } = await sb.rpc('usage_variance', {
+    p_restaurant_id: restaurantId,
+    p_start: start,
+    p_end: end,
+  })
+  if (error) return { rows: [], error: error.message }
+  const rows = ((data ?? []) as {
+    ingredient: string
+    theoretical_base: number
+    actual_base: number
+    variance_pct: number | null
+    notes: string | null
+  }[]).map((r) => ({
+    ingredient: r.ingredient,
+    theoreticalBase: Number(r.theoretical_base),
+    actualBase: Number(r.actual_base),
+    variancePct: r.variance_pct == null ? null : Number(r.variance_pct),
+    notes: r.notes,
+  }))
+  return { rows, error: null }
+}
+
+/** Base qty → a friendly value in the ingredient's purchase unit. */
+export function formatBaseQty(
+  baseQty: number,
+  defaultUnit: string | null | undefined
+): string {
+  const conv = defaultUnit ? toBase(1, defaultUnit) : null
+  if (conv && conv.base > 0) {
+    const v = baseQty / conv.base
+    const rounded = v >= 100 ? Math.round(v) : v >= 10 ? Math.round(v * 10) / 10 : Math.round(v * 100) / 100
+    return `${rounded.toLocaleString('en-US')} ${defaultUnit!.toLowerCase()}`
+  }
+  if (baseQty >= 1000) return `${(baseQty / 1000).toFixed(1)}k units`
+  return `${Math.round(baseQty * 10) / 10} units`
+}
