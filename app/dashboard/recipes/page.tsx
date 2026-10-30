@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRestaurant } from '@/lib/restaurant'
 import {
+  calibrationHints,
   fetchCanonicalItems,
   fetchDishSales,
   fetchIngredientCosts,
@@ -22,6 +23,7 @@ import {
   type IngredientCost,
   type RecipeLine,
   type RecipeMeta,
+  type CalibrationHint,
   type VarianceRow,
 } from '@/lib/recipes'
 
@@ -56,6 +58,8 @@ export default function RecipesPage() {
   const [period, setPeriod] = useState<'30d' | 'month' | 'lastMonth'>('30d')
   const [variance, setVariance] = useState<VarianceRow[]>([])
   const [varianceError, setVarianceError] = useState<string | null>(null)
+  const [varianceRange, setVarianceRange] = useState<{ start: string; end: string } | null>(null)
+  const [dismissedCalib, setDismissedCalib] = useState<string[]>([])
 
   const [meta, setMeta] = useState<Map<string, RecipeMeta>>(new Map())
   const [metaMissing, setMetaMissing] = useState(false)
@@ -104,6 +108,7 @@ export default function RecipesPage() {
     const v = await fetchUsageVariance(supabase, restaurantId, start, end)
     setVariance(v.rows)
     setVarianceError(v.error)
+    setVarianceRange({ start, end })
     setLoading(false)
   }, [restaurantId, period])
 
@@ -342,6 +347,92 @@ export default function RecipesPage() {
     }
   }
 
+  // Dismissed calibration hints persist per restaurant.
+  useEffect(() => {
+    if (!restaurantId) return
+    try {
+      const raw = localStorage.getItem(`mise.calib_dismissed.${restaurantId}`)
+      setDismissedCalib(raw ? (JSON.parse(raw) as string[]) : [])
+    } catch {
+      setDismissedCalib([])
+    }
+  }, [restaurantId])
+
+  async function applyCalibration(h: CalibrationHint) {
+    if (!restaurantId) return
+    setSaving(true)
+    setNotice(null)
+    try {
+      const { data: lines, error: selErr } = await supabase
+        .from('recipes_estimated')
+        .select('id, quantity')
+        .eq('restaurant_id', restaurantId)
+        .eq('ingredient_name', h.ingredient)
+      if (selErr) throw new Error(selErr.message)
+      if (!lines || lines.length === 0) {
+        throw new Error('No recipe lines use that ingredient anymore.')
+      }
+      for (const l of lines as { id: string; quantity: number }[]) {
+        const { error: upErr } = await supabase
+          .from('recipes_estimated')
+          .update({
+            quantity: Math.round(Number(l.quantity) * h.factor * 1000) / 1000,
+            confidence: 'data_calibrated',
+            source: 'calibration',
+            last_updated_at: new Date().toISOString(),
+          })
+          .eq('id', l.id)
+        if (upErr) throw new Error(upErr.message)
+      }
+      // Audit row (best-effort): purchased ÷ servings = implied portion.
+      const item = canonByName.get(h.ingredient)
+      const unit = item?.default_unit ?? 'LB'
+      const per = toBase(1, unit.toLowerCase())
+      const totalServings = dishes
+        .filter((d) =>
+          (recipes.get(d.menuItemName) ?? []).some((l) => l.ingredient_name === h.ingredient)
+        )
+        .reduce((a, d) => a + d.soldQty, 0)
+      if (per && varianceRange) {
+        const purchasedQty = h.actualBase / per.base
+        await supabase.from('recipe_calibrations').insert({
+          restaurant_id: restaurantId,
+          ingredient_name: h.ingredient,
+          period_start: varianceRange.start,
+          period_end: varianceRange.end,
+          total_purchased_qty: Math.round(purchasedQty * 1000) / 1000,
+          purchase_unit: unit,
+          total_dishes_using_ingredient: Math.round(totalServings),
+          implied_portion:
+            totalServings > 0
+              ? Math.round((purchasedQty / totalServings) * 10000) / 10000
+              : 0,
+          applied: true,
+          notes: `Scaled recipe lines ×${h.factor.toFixed(2)} — purchases ran ${h.variancePct > 0 ? '+' : ''}${h.variancePct.toFixed(0)}% vs recipe-implied usage.`,
+        })
+      }
+      setNotice(
+        `Calibrated: every recipe using ${h.ingredient} was scaled ×${h.factor.toFixed(2)} to match what you actually buy.`
+      )
+      await load()
+    } catch (e) {
+      setNotice((e as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function dismissCalibration(ingredient: string) {
+    if (!restaurantId) return
+    const next = [...dismissedCalib, ingredient]
+    setDismissedCalib(next)
+    try {
+      localStorage.setItem(`mise.calib_dismissed.${restaurantId}`, JSON.stringify(next))
+    } catch {
+      /* ignore */
+    }
+  }
+
   // Live cost of the component being edited.
   const compEditCost =
     editingComp != null
@@ -392,6 +483,9 @@ export default function RecipesPage() {
     return [...seen].sort()
   })()
   const definedComponents = [...meta.keys()].sort()
+  const calibHints = calibrationHints(variance).filter(
+    (h) => !dismissedCalib.includes(h.ingredient)
+  )
   const varianceMain = variance.filter((v) => v.variancePct != null)
   const varianceNoRecipe = variance.filter((v) => v.variancePct == null && v.actualBase > 0)
   const impactOf = (v: VarianceRow): number | null => {
@@ -991,6 +1085,53 @@ export default function RecipesPage() {
                 )
                 .join(' · ')}
             </p>
+          )}
+
+          {!varianceError && calibHints.length > 0 && (
+            <div className="mt-5 border-t border-ink/[0.06] pt-4">
+              <h3 className="text-[14px] font-semibold text-ink">Calibration hints</h3>
+              <p className="mt-1 max-w-2xl text-[12.5px] text-ink-muted">
+                Your purchases disagree with your written recipes on these ingredients. If
+                the difference is portion size (not waste or stock build-up), apply the fix
+                and every recipe using that ingredient scales to match reality. Purchases
+                aren't usage, so judge each one.
+              </p>
+              <div className="mt-3 space-y-2">
+                {calibHints.map((h) => {
+                  const item = canonByName.get(h.ingredient)
+                  return (
+                    <div
+                      key={h.ingredient}
+                      className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[10px] border border-ink/[0.08] px-3.5 py-2.5 text-[13px]"
+                    >
+                      <span className="font-medium text-ink">{h.ingredient}</span>
+                      <span className="text-ink-muted">
+                        recipes account for {formatBaseQty(h.theoreticalBase, item?.default_unit)},
+                        you bought {formatBaseQty(h.actualBase, item?.default_unit)} (
+                        {h.variancePct > 0 ? '+' : ''}
+                        {h.variancePct.toFixed(0)}%)
+                      </span>
+                      <span className="ml-auto flex items-center gap-2">
+                        <button
+                          onClick={() => applyCalibration(h)}
+                          disabled={saving}
+                          className="rounded-[8px] bg-forest px-3 py-1.5 text-[12.5px] font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                        >
+                          Scale recipes ×{h.factor.toFixed(2)}
+                        </button>
+                        <button
+                          onClick={() => dismissCalibration(h.ingredient)}
+                          className="px-1 text-[15px] text-ink-muted hover:text-terracotta"
+                          aria-label="Dismiss hint"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
           )}
         </div>
       )}

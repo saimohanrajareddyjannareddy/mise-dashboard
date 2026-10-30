@@ -285,6 +285,41 @@ export function mergeComponentCosts(
   return merged
 }
 
+export interface CalibrationHint {
+  ingredient: string
+  factor: number
+  theoreticalBase: number
+  actualBase: number
+  variancePct: number
+}
+
+/**
+ * Back-solve signal: where purchases diverge from recipe-implied
+ * usage by ≥25%, the recipes are probably wrong (portions bigger
+ * or smaller than written) — factor = actual ÷ theoretical is the
+ * multiplier that would align them. Purchases ≠ usage (stock
+ * changes, waste), so a hint is a proposal, never an auto-edit.
+ */
+export function calibrationHints(rows: VarianceRow[], minAbsPct = 25): CalibrationHint[] {
+  return rows
+    .filter(
+      (r) =>
+        r.theoreticalBase > 0 &&
+        r.actualBase > 0 &&
+        r.variancePct != null &&
+        Math.abs(r.variancePct) >= minAbsPct
+    )
+    .map((r) => ({
+      ingredient: r.ingredient,
+      factor: r.actualBase / r.theoreticalBase,
+      theoreticalBase: r.theoreticalBase,
+      actualBase: r.actualBase,
+      variancePct: r.variancePct as number,
+    }))
+    .filter((h) => h.factor >= 0.25 && h.factor <= 4)
+    .sort((a, b) => Math.abs(b.variancePct) - Math.abs(a.variancePct))
+}
+
 /** Plate cost for one recipe; lists ingredients that couldn't be priced. */
 export function plateCost(
   lines: RecipeLine[],
