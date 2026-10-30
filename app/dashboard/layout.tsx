@@ -297,10 +297,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </span>
               )}
             </Link>
+            {/* Ask — icon-only below sm so the assistant stays reachable on
+                phones; the labelled pill returns at sm and up. */}
             <button
               type="button"
+              aria-label="Ask InvoiceIQ"
               onClick={() => setAskOpen(true)}
-              className="hidden items-center gap-2 rounded-[10px] border border-ink/[0.14] bg-cream-surface px-3.5 py-2.5 text-[14px] font-semibold text-ink-2 transition hover:bg-cream-surface-alt sm:flex"
+              className="flex h-10 w-10 items-center justify-center rounded-[9px] border border-ink/[0.14] bg-cream-surface text-ink-2 transition hover:bg-cream-surface-alt sm:h-auto sm:w-auto sm:gap-2 sm:rounded-[10px] sm:px-3.5 sm:py-2.5 sm:text-[14px] sm:font-semibold"
             >
               <Sparkles size={16} className="text-pop" /><span className="hidden md:inline">Ask</span>
             </button>
