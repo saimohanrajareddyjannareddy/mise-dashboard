@@ -171,9 +171,16 @@ export async function fetchCloverSalesAggregates(
   // lower rung degrades that slice (refunds read as zero, channel
   // reads 'Unspecified', tender rows skipped) instead of failing
   // the whole sync.
+  // Ladder order matters: each optional field drops out on its own
+  // before combinations do, so one blocked expansion (say payments)
+  // can't take the channel split down with it.
   const EXPANSIONS = [
     'lineItems,discounts,refunds,orderType,payments',
     'lineItems,discounts,orderType,payments',
+    'lineItems,discounts,refunds,orderType',
+    'lineItems,discounts,orderType',
+    'lineItems,discounts,refunds,payments',
+    'lineItems,discounts,payments',
     'lineItems,discounts,refunds',
     'lineItems,discounts',
     'lineItems',
