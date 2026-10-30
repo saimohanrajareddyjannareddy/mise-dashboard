@@ -1,21 +1,12 @@
 import Link from 'next/link'
 
 /*
- * mise — Landing page
- * Recreated from the Claude Design handoff (Mise Landing.dc.html), pixel-for-pixel,
- * as a Next.js App Router server component (no client-side interactivity required).
- *
- * Editor props carried over from the design. For the beta these are hardcoded;
- * lift to config/env when the marketing site becomes configurable and when Pro
- * pricing launches (see PRO_PRICE note below).
+ * InvoiceIQ — public landing page.
+ * A server component written in the product's own voice: it leads with the
+ * outcome, shows the product, prints the real $99 price, and answers the
+ * questions an owner asks before trusting software with supplier paperwork.
  */
-const SHOW_SOCIAL_PROOF = true
 const SHOW_DASHBOARD_CALLOUT = true
-// NOTE: `proPrice` exists in the design's prop schema, but the shipped markup
-// shows "Free during beta" rather than a price. Kept to preserve the design's
-// semantics and for when Pro pricing goes live (Q4 2026).
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const PRO_PRICE = '$79'
 
 // Decorative motion from the design, scoped to this page (globals.css stays
 // limited to token/font wiring). Honors prefers-reduced-motion.
@@ -47,20 +38,26 @@ export default function LandingPage() {
           <span className="text-[34px] leading-[0] text-pop">.</span>
         </div>
         <div className="flex items-center gap-5 md:gap-[34px]">
-          <Link href="#how-it-works" className="hidden text-[15px] font-medium text-cream/70 hover:text-cream md:inline">
+          <Link href="#features" className="hidden text-[15px] font-medium text-cream/70 hover:text-cream md:inline">
+            Features
+          </Link>
+          <Link href="#how-it-works" className="hidden text-[15px] font-medium text-cream/70 hover:text-cream lg:inline">
             How it works
           </Link>
           <Link href="#pricing" className="hidden text-[15px] font-medium text-cream/70 hover:text-cream md:inline">
             Pricing
           </Link>
+          <Link href="#faq" className="hidden text-[15px] font-medium text-cream/70 hover:text-cream lg:inline">
+            FAQ
+          </Link>
           <Link href="/login" className="hidden text-[15px] font-medium text-cream/70 hover:text-cream md:inline">
             Log in
           </Link>
           <Link
-            href="/login"
+            href="/signup"
             className="rounded-[8px] bg-terracotta px-5 py-[11px] text-[15px] font-semibold text-[#FDF8F0] shadow-[0_1px_2px_rgba(196,100,45,.35)] hover:bg-terracotta-hover"
           >
-            Get started
+            Start free trial
           </Link>
         </div>
       </nav>
@@ -76,32 +73,29 @@ export default function LandingPage() {
             <br />
             <span className="font-serif normal-case italic tracking-normal text-pop">Before your accountant does.</span>
           </h1>
-          <p className="mb-8 max-w-[500px] text-[19px] leading-[1.55] text-cream/70">
-            Every vendor invoice, captured automatically. From Restaurant Depot to your local produce guy. See margin
-            leaks before they cost you the month.
+          <p className="mb-8 max-w-[520px] text-[19px] leading-[1.55] text-cream/70">
+            Snap a receipt, forward an email, or upload a PDF. InvoiceIQ turns supplier paperwork into food-cost
+            answers while the week is still fixable.
           </p>
-          <div className="flex max-w-[480px] gap-[10px]">
-            <input
-              type="email"
-              placeholder="you@restaurant.com"
-              className="min-w-0 flex-1 rounded-[9px] border border-white/20 bg-white/[0.06] px-4 py-[15px] text-[15px] text-cream outline-none placeholder:text-cream/40"
-            />
+          <div className="flex flex-col gap-[10px] sm:flex-row">
             <Link
-              href="/login"
+              href="/signup"
               className="flex items-center justify-center whitespace-nowrap rounded-[9px] bg-terracotta px-6 py-[15px] text-[15px] font-semibold text-[#FDF8F0] shadow-[0_2px_8px_rgba(196,100,45,.3)] hover:bg-terracotta-hover"
             >
-              Get started
+              Start your free trial
+            </Link>
+            <Link
+              href="#product"
+              className="flex items-center justify-center whitespace-nowrap rounded-[9px] border border-white/25 px-6 py-[15px] text-[15px] font-semibold text-cream transition hover:bg-white/[0.07]"
+            >
+              See the product
             </Link>
           </div>
-          <p className="mt-[14px] flex items-center gap-[7px] text-[13.5px] text-cream/60">
-            <span className="text-pop">✓</span> Free while you have &lt; 100 invoices/month
+          <p className="mt-[14px] flex flex-wrap items-center gap-x-[7px] gap-y-1 text-[13.5px] text-cream/60">
+            <span><span className="text-pop">✓</span> 14 days free</span>
+            <span aria-hidden="true">·</span><span>No card to start</span>
+            <span aria-hidden="true">·</span><span>Set up in minutes</span>
           </p>
-          <Link
-            href="/login"
-            className="mt-[10px] inline-block text-[13.5px] font-medium text-[#F9A8D4] hover:text-pop"
-          >
-            Or book a 15-min demo →
-          </Link>
         </div>
 
         {/* HERO DATA ELEMENT: decoding invoice card */}
@@ -171,66 +165,93 @@ export default function LandingPage() {
       </header>
       </div>
 
-      {/* SOCIAL PROOF STRIP */}
-      {SHOW_SOCIAL_PROOF && (
-        <div className="mx-auto max-w-[1240px] px-6 pb-2 pt-5 text-center md:px-10">
-          <p className="text-[13.5px] tracking-[0.02em] text-[#9A9384]">
-            Used by independent restaurants like <span className="font-semibold text-ink-2">Turmeric STL</span> and{' '}
-            <span className="font-semibold text-ink-2">BASIL India</span>
+      {/* PILOT PROOF — real operating numbers, labelled as pilot results. */}
+      <section className="border-b border-ink/[0.08]">
+        <div className="mx-auto grid max-w-[1240px] grid-cols-1 gap-6 px-6 py-9 text-center sm:grid-cols-3 md:px-10">
+          <div>
+            <div className="font-display text-[34px] font-extrabold leading-none text-ink">500+</div>
+            <p className="mt-2 text-[13.5px] text-ink-muted">invoices processed during pilot use</p>
+          </div>
+          <div>
+            <div className="font-display text-[34px] font-extrabold leading-none text-ink">99%+</div>
+            <p className="mt-2 text-[13.5px] text-ink-muted">field accuracy in hand-checked samples</p>
+          </div>
+          <div>
+            <div className="font-display text-[34px] font-extrabold leading-none text-ink">Minutes</div>
+            <p className="mt-2 text-[13.5px] text-ink-muted">from photo to review-ready line items</p>
+          </div>
+        </div>
+      </section>
+
+      {/* FEATURES */}
+      <section id="features" className="mx-auto max-w-[1240px] scroll-mt-8 px-6 py-16 md:px-10 md:py-20">
+        <div className="mb-10 max-w-[720px]">
+          <div className="mb-3 text-[12.5px] font-semibold uppercase tracking-[0.1em] text-terracotta">What it handles</div>
+          <h2 className="font-serif text-[34px] font-normal leading-[1.05] tracking-[-0.5px] text-ink md:text-[46px]">
+            The paperwork disappears. The numbers stay.
+          </h2>
+          <p className="mt-4 text-[16.5px] leading-[1.6] text-ink-3">
+            Six jobs move off your counter and into one place: capture, checking, food cost, price changes, recipes,
+            and plain-language answers.
           </p>
         </div>
-      )}
-
-      {/* THREE FEATURE CARDS */}
-      <section className="mx-auto max-w-[1240px] px-6 py-16 md:px-10">
-        <div className="grid grid-cols-1 gap-[22px] md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-[22px] md:grid-cols-2 lg:grid-cols-3">
           <div className="rounded-[16px] border border-ink/[0.08] bg-cream-surface px-7 py-[30px]">
             <div className="mb-[22px] flex h-[46px] w-[46px] items-center justify-center rounded-[11px] bg-forest/[0.07]">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1E3A2F" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 4h11l5 5v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z" />
-                <path d="M14 4v5h5" />
-                <path d="M7 13h8M7 17h5" />
-              </svg>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1E3A2F" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></svg>
             </div>
-            <h3 className="mb-2 font-serif text-[25px] font-normal text-ink">Every invoice, automatically</h3>
-            <p className="text-[15px] leading-[1.55] text-ink-3">
-              Auto-capture from vendor emails, portals, and uploads. No data entry, no shoebox of receipts.
-            </p>
+            <h3 className="mb-2 font-serif text-[25px] font-normal text-ink">Capture without typing</h3>
+            <p className="text-[15px] leading-[1.55] text-ink-3">Use the camera, upload files, or let a Gmail scan find supplier invoices. Line items are ready in minutes, not days.</p>
           </div>
 
           <div className="rounded-[16px] border border-ink/[0.08] bg-cream-surface px-7 py-[30px]">
             <div className="mb-[22px] flex h-[46px] w-[46px] items-center justify-center rounded-[11px] bg-terracotta/10">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#EC4899" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 17l5-5 4 3 6-8" />
-                <path d="M18 4h3v3" />
-              </svg>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#EC4899" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19V5M4 19h16M8 16v-5M12 16V8M16 16v-3M20 16V6" /></svg>
             </div>
-            <h3 className="mb-2 font-serif text-[25px] font-normal text-ink">Price alerts that catch overcharges</h3>
-            <p className="text-[15px] leading-[1.55] text-ink-3">
-              When it&apos;s Yellow onions ↑ 22% this week, you know — before you pay, not at tax time.
-            </p>
+            <h3 className="mb-2 font-serif text-[25px] font-normal text-ink">Food cost on one screen</h3>
+            <p className="text-[15px] leading-[1.55] text-ink-3">Approved purchases sit beside Clover sales, so the percentage you run the kitchen by is not split across reports.</p>
           </div>
 
           <div className="rounded-[16px] border border-ink/[0.08] bg-cream-surface px-7 py-[30px]">
             <div className="mb-[22px] flex h-[46px] w-[46px] items-center justify-center rounded-[11px] bg-forest/[0.07]">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1E3A2F" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
-              </svg>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1E3A2F" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M3 17l5-5 4 3 6-8" /><path d="M18 4h3v3" /></svg>
             </div>
-            <h3 className="mb-2 font-serif text-[25px] font-normal text-ink">Waste + margin analytics</h3>
-            <p className="text-[15px] leading-[1.55] text-ink-3">
-              Food cost % by category, with a flag the moment a category starts drifting up on you.
-            </p>
+            <h3 className="mb-2 font-serif text-[25px] font-normal text-ink">Price moves, flagged early</h3>
+            <p className="text-[15px] leading-[1.55] text-ink-3">Items moving 5% or more surface in alerts; moves of 20% or more are marked as the ones to look at first.</p>
+          </div>
+
+          <div className="rounded-[16px] border border-ink/[0.08] bg-cream-surface px-7 py-[30px]">
+            <div className="mb-[22px] flex h-[46px] w-[46px] items-center justify-center rounded-[11px] bg-terracotta/10">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#EC4899" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M7 3v7M4 3v4a3 3 0 0 0 6 0V3M7 10v11M18 3c-2 1-3 3-3 6 0 2 1 3 3 3v9M18 3v18" /></svg>
+            </div>
+            <h3 className="mb-2 font-serif text-[25px] font-normal text-ink">Recipes priced from real bills</h3>
+            <p className="text-[15px] leading-[1.55] text-ink-3">Start with the dish as your kitchen makes it. InvoiceIQ prices it from the latest approved invoices and keeps components like sauces costed too.</p>
+          </div>
+
+          <div className="rounded-[16px] border border-ink/[0.08] bg-cream-surface px-7 py-[30px]">
+            <div className="mb-[22px] flex h-[46px] w-[46px] items-center justify-center rounded-[11px] bg-forest/[0.07]">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1E3A2F" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a8 8 0 0 1-8 8H4l2-3a8 8 0 1 1 15-5z" /><path d="M8.5 11h7M8.5 14h4" /></svg>
+            </div>
+            <h3 className="mb-2 font-serif text-[25px] font-normal text-ink">Ask instead of digging</h3>
+            <p className="text-[15px] leading-[1.55] text-ink-3">Ask what changed, what a category cost, or how much of an item you bought. Answers come from approved records, not guesses.</p>
+          </div>
+
+          <div className="rounded-[16px] border border-ink/[0.08] bg-cream-surface px-7 py-[30px]">
+            <div className="mb-[22px] flex h-[46px] w-[46px] items-center justify-center rounded-[11px] bg-terracotta/10">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#EC4899" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h11l5 5v11H4z" /><path d="M14 4v5h5M7 13h8M7 17h5" /></svg>
+            </div>
+            <h3 className="mb-2 font-serif text-[25px] font-normal text-ink">Built for how you buy</h3>
+            <p className="text-[15px] leading-[1.55] text-ink-3">Restaurant Depot checkout slips, cash-and-carry receipts, local wholesalers, and handwritten corrections belong here too.</p>
           </div>
         </div>
       </section>
 
       {/* DASHBOARD PREVIEW */}
-      <section className="mx-auto max-w-[1240px] px-6 pb-[72px] pt-6 md:px-10">
+      <section id="product" className="mx-auto max-w-[1240px] scroll-mt-8 px-6 pb-[72px] pt-6 md:px-10">
         <div className="mb-9 text-center">
-          <div className="mb-3 text-[12.5px] font-semibold uppercase tracking-[0.1em] text-terracotta">The dashboard</div>
+          <div className="mb-3 text-[12.5px] font-semibold uppercase tracking-[0.1em] text-terracotta">Inside the product</div>
           <h2 className="font-serif text-[34px] font-normal leading-[1.05] tracking-[-0.5px] text-ink md:text-[46px]">
-            Your P&amp;L, line by line, in real time
+            Start the day with the answer, not a spreadsheet
           </h2>
         </div>
 
@@ -313,19 +334,19 @@ export default function LandingPage() {
                   <div className="overflow-hidden rounded-[12px] border border-ink/[0.07] bg-cream-surface-alt">
                     <div className="flex items-center justify-between border-b border-ink/[0.06] px-[14px] py-[11px]">
                       <div><div className="text-[13px] text-ink">Restaurant Depot</div><div className="text-[11px] text-ink-muted">Jul 9 · 24 items</div></div>
-                      <div className="text-right"><div className="font-mono text-[13px] text-ink">$1,842</div><span className="font-mono text-[10px] text-terracotta">2 flagged</span></div>
+                      <div className="text-right"><div className="font-mono text-[13px] text-ink">$1,842</div><span className="font-mono text-[10px] text-terracotta">2 price moves</span></div>
                     </div>
                     <div className="flex items-center justify-between border-b border-ink/[0.06] px-[14px] py-[11px]">
                       <div><div className="text-[13px] text-ink">Sysco Foods</div><div className="text-[11px] text-ink-muted">Jul 8 · 41 items</div></div>
-                      <div className="text-right"><div className="font-mono text-[13px] text-ink">$3,210</div><span className="font-mono text-[10px] text-forest">clean</span></div>
+                      <div className="text-right"><div className="font-mono text-[13px] text-ink">$3,210</div><span className="font-mono text-[10px] text-forest">no big moves</span></div>
                     </div>
                     <div className="flex items-center justify-between border-b border-ink/[0.06] px-[14px] py-[11px]">
                       <div><div className="text-[13px] text-ink">Baldor Specialty</div><div className="text-[11px] text-ink-muted">Jul 7 · 18 items</div></div>
-                      <div className="text-right"><div className="font-mono text-[13px] text-ink">$964</div><span className="font-mono text-[10px] text-terracotta">1 flagged</span></div>
+                      <div className="text-right"><div className="font-mono text-[13px] text-ink">$964</div><span className="font-mono text-[10px] text-terracotta">1 price move</span></div>
                     </div>
                     <div className="flex items-center justify-between px-[14px] py-[11px]">
                       <div><div className="text-[13px] text-ink">Pacific Seafood</div><div className="text-[11px] text-ink-muted">Jul 6 · 9 items</div></div>
-                      <div className="text-right"><div className="font-mono text-[13px] text-ink">$1,120</div><span className="font-mono text-[10px] text-forest">clean</span></div>
+                      <div className="text-right"><div className="font-mono text-[13px] text-ink">$1,120</div><span className="font-mono text-[10px] text-forest">no big moves</span></div>
                     </div>
                   </div>
                 </div>
@@ -339,9 +360,9 @@ export default function LandingPage() {
                   <div className="mt-0.5 font-mono text-[12px] text-terracotta">↑ 1.8 pts vs. last month</div>
                 </div>
                 <div className="rounded-[11px] border border-ink/[0.07] bg-cream-surface-alt px-4 py-[15px]">
-                  <div className="text-[11.5px] tracking-[0.03em] text-ink-muted">Overcharges caught</div>
-                  <div className="mt-1 font-mono text-[26px] font-semibold text-ink">$1,240</div>
-                  <div className="mt-0.5 font-mono text-[12px] text-forest">↓ recovered this quarter</div>
+                  <div className="text-[11.5px] tracking-[0.03em] text-ink-muted">Spend in this view</div>
+                  <div className="mt-1 font-mono text-[26px] font-semibold text-ink">$7,136</div>
+                  <div className="mt-0.5 font-mono text-[12px] text-ink-muted">across the invoices above</div>
                 </div>
                 <div className="rounded-[11px] border border-ink/[0.07] bg-cream-surface-alt px-4 py-[15px]">
                   <div className="text-[11.5px] tracking-[0.03em] text-ink-muted">Invoices parsed</div>
@@ -352,6 +373,36 @@ export default function LandingPage() {
             </main>
           </div>
         </div>
+        <p className="mt-4 text-center text-[12.5px] text-ink-muted">Illustrative product view using sample data.</p>
+      </section>
+
+      {/* ASK SPOTLIGHT */}
+      <section className="mx-auto max-w-[1240px] px-6 pb-[84px] md:px-10">
+        <div className="grid grid-cols-1 items-center gap-10 rounded-[22px] bg-coal px-7 py-12 text-cream md:px-12 lg:grid-cols-2">
+          <div>
+            <div className="mb-3 text-[12.5px] font-semibold uppercase tracking-[0.1em] text-pop">Ask InvoiceIQ</div>
+            <h2 className="font-serif text-[34px] font-normal leading-[1.05] text-cream md:text-[44px]">Ask the question you would ask your bookkeeper.</h2>
+            <p className="mt-5 max-w-[520px] text-[16px] leading-[1.6] text-cream/70">
+              No report hunting. Ask about a vendor, a category, or a single ingredient and get an answer from the
+              invoices you approved and the sales you connected.
+            </p>
+            <div className="mt-7 flex flex-wrap gap-2 text-[13.5px] text-cream/80">
+              <span className="rounded-full border border-white/15 px-3 py-1.5">“Which prices moved most?”</span>
+              <span className="rounded-full border border-white/15 px-3 py-1.5">“What did dairy cost in October?”</span>
+              <span className="rounded-full border border-white/15 px-3 py-1.5">“Why is food cost up?”</span>
+            </div>
+          </div>
+          <div className="rounded-[16px] border border-white/10 bg-white/[0.05] p-5">
+            <div className="ml-auto max-w-[85%] rounded-[14px] rounded-br-[4px] bg-pop px-4 py-3 text-[14.5px] font-medium text-white">
+              What changed on our last Restaurant Depot run?
+            </div>
+            <div className="mt-4 max-w-[92%] rounded-[14px] rounded-bl-[4px] bg-cream px-4 py-3 text-[14.5px] leading-[1.55] text-ink">
+              Chicken is steady. Yellow onions are up 22% from the prior purchase. Two lines are waiting in Review,
+              so they are not counted in your totals yet.
+            </div>
+            <p className="mt-4 font-mono text-[11px] uppercase tracking-[0.08em] text-cream/45">Sample conversation · answers use approved data only</p>
+          </div>
+        </div>
       </section>
 
       {/* HOW IT WORKS */}
@@ -360,152 +411,184 @@ export default function LandingPage() {
           <div className="mb-[52px] text-center">
             <div className="mb-3 text-[12.5px] font-semibold uppercase tracking-[0.1em] text-pop">How it works</div>
             <h2 className="font-serif text-[34px] font-normal leading-[1.05] text-cream md:text-[46px]">
-              Set it up once. Never touch it again.
+              From shoebox to checked numbers in three steps
             </h2>
           </div>
           <div className="grid grid-cols-1 gap-[30px] md:grid-cols-3">
             <div>
               <div className="mb-[14px] font-mono text-[14px] text-pop">01</div>
-              <h3 className="mb-[10px] font-serif text-[27px] font-normal text-cream">Connect your vendors</h3>
+              <h3 className="mb-[10px] font-serif text-[27px] font-normal text-cream">Add the paperwork</h3>
               <p className="text-[15px] leading-[1.55] text-[#C9C2B4]">
-                Restaurant Depot, Sysco, US Foods, or just forward the email. We handle the rest.
+                Use the phone camera, upload files, or connect Gmail to find supplier invoices. Paper checkout slips and local-wholesaler bills are welcome.
               </p>
             </div>
             <div>
               <div className="mb-[14px] font-mono text-[14px] text-pop">02</div>
-              <h3 className="mb-[10px] font-serif text-[27px] font-normal text-cream">We parse every invoice</h3>
+              <h3 className="mb-[10px] font-serif text-[27px] font-normal text-cream">Check the read</h3>
               <p className="text-[15px] leading-[1.55] text-[#C9C2B4]">
-                Each invoice becomes clean line items — product, quantity, unit price — mapped to your categories.
+                Totals are recomputed in code. Anything uncertain waits in Review for a quick approve, edit, or deny — it never slips into your numbers.
               </p>
             </div>
             <div>
               <div className="mb-[14px] font-mono text-[14px] text-pop">03</div>
-              <h3 className="mb-[10px] font-serif text-[27px] font-normal text-cream">Get alerts, save money</h3>
+              <h3 className="mb-[10px] font-serif text-[27px] font-normal text-cream">Act while it matters</h3>
               <p className="text-[15px] leading-[1.55] text-[#C9C2B4]">
-                Price jumps, margin drift, and vendor games surface the moment they happen.
+                Watch food cost, catch price moves, cost the next menu change, and ask questions from records you already checked.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* TESTIMONIAL */}
-      <section className="mx-auto max-w-[900px] px-6 py-[88px] text-center md:px-10">
-        <blockquote className="m-0">
-          <p className="mb-7 font-serif text-[28px] font-normal italic leading-[1.25] tracking-[-0.5px] text-ink md:text-[40px]">
-            “I was losing <span className="text-terracotta">$400 a month</span> to price drift on three vendors and had
-            no idea. InvoiceIQ caught it in the first week.”
+      {/* THE WEDGE */}
+      <section className="mx-auto max-w-[1000px] px-6 py-[84px] md:px-10">
+        <div className="text-center">
+          <div className="mb-3 text-[12.5px] font-semibold uppercase tracking-[0.1em] text-terracotta">The messy middle</div>
+          <h2 className="font-serif text-[34px] font-normal leading-[1.05] text-ink md:text-[46px]">
+            Made for the invoices other systems leave behind.
+          </h2>
+          <p className="mx-auto mt-5 max-w-[680px] text-[16.5px] leading-[1.6] text-ink-3">
+            Plenty of tools love a clean distributor feed. Kitchens also run on checkout-lane paper, small wholesalers,
+            handwriting in the margins, and a supplier whose name never prints the same way twice.
           </p>
-        </blockquote>
-        <div className="flex items-center justify-center gap-3">
-          <div className="flex h-[44px] w-[44px] items-center justify-center rounded-full bg-coal font-display text-[17px] font-bold text-cream">DR</div>
-          <div className="text-left">
-            <div className="text-[15px] font-semibold text-ink">Danielle Rivas</div>
-            <div className="text-[13.5px] text-ink-muted">Owner, Cardo &amp; Vine · St. Louis</div>
-          </div>
+        </div>
+        <div className="mt-10 grid grid-cols-1 gap-[18px] sm:grid-cols-2">
+          <div className="rounded-[14px] border border-ink/[0.08] bg-cream-surface px-6 py-5 text-[15.5px] font-medium text-ink">Paper receipts from Restaurant Depot and cash-and-carry runs</div>
+          <div className="rounded-[14px] border border-ink/[0.08] bg-cream-surface px-6 py-5 text-[15.5px] font-medium text-ink">Local and ethnic wholesalers with no electronic feed</div>
+          <div className="rounded-[14px] border border-ink/[0.08] bg-cream-surface px-6 py-5 text-[15.5px] font-medium text-ink">Handwritten slips get a human check before money counts</div>
+          <div className="rounded-[14px] border border-ink/[0.08] bg-cream-surface px-6 py-5 text-[15.5px] font-medium text-ink">Supplier spellings are remembered, so Review gets faster</div>
         </div>
       </section>
 
       {/* PRICING */}
-      <section id="pricing" className="mx-auto max-w-[1000px] px-6 pb-20 pt-5 md:px-10">
+      <section id="pricing" className="mx-auto max-w-[1000px] scroll-mt-8 px-6 pb-20 pt-5 md:px-10">
         <div className="mb-11 text-center">
           <div className="mb-3 text-[12.5px] font-semibold uppercase tracking-[0.1em] text-terracotta">Pricing</div>
           <h2 className="font-serif text-[34px] font-normal leading-[1.05] text-ink md:text-[46px]">
-            Start free. Upgrade when it pays for itself.
+            One price, printed in the open.
           </h2>
+          <p className="mx-auto mt-4 max-w-[560px] text-[16px] leading-[1.6] text-ink-3">
+            No quote call. No setup fee. No per-invoice meter running while you work.
+          </p>
         </div>
-        <div className="grid grid-cols-1 items-stretch gap-[22px] md:grid-cols-2">
-          {/* Starter */}
-          <div className="flex flex-col rounded-[18px] border border-ink/10 bg-cream-surface px-8 py-[34px]">
-            <div className="text-[15px] font-semibold text-ink">Starter</div>
-            <div className="mb-[6px] mt-4 flex items-baseline gap-[6px]">
-              <span className="font-serif text-[52px] leading-none text-ink">Free</span>
+        <div className="mx-auto max-w-[820px] rounded-[20px] bg-coal px-8 py-[38px] text-[#EDEFE8] shadow-[0_30px_60px_-28px_rgba(23,19,16,.55)] md:px-12">
+          <div className="grid grid-cols-1 gap-10 md:grid-cols-[0.9fr_1.1fr]">
+            <div>
+              <div className="text-[15px] font-semibold text-pop">InvoiceIQ</div>
+              <div className="mb-[6px] mt-4 flex flex-wrap items-baseline gap-x-2">
+                <span className="font-serif text-[64px] leading-none text-cream">$99</span>
+                <span className="text-[15px] text-[#C9C2B4]">per location / month</span>
+              </div>
+              <p className="text-[14.5px] leading-[1.55] text-[#C9C2B4]">After a 14-day free trial. No card is required to start.</p>
+              <Link href="/signup" className="mt-7 block rounded-[9px] bg-terracotta px-4 py-[14px] text-center text-[15px] font-semibold text-[#FDF8F0] shadow-[0_4px_14px_rgba(196,100,45,.4)] hover:bg-terracotta-hover">
+                Start free trial
+              </Link>
+              <p className="mt-3 text-center text-[12.5px] text-cream/50">Cancel anytime from billing settings.</p>
             </div>
-            <p className="mb-[22px] text-[14px] text-ink-muted">Up to 100 invoices / month</p>
-            <div className="mb-7 flex flex-col gap-[11px] text-[14.5px] text-ink-2">
-              <div className="flex gap-[10px]"><span className="text-forest">✓</span> Auto-capture &amp; parsing</div>
-              <div className="flex gap-[10px]"><span className="text-forest">✓</span> Price alerts</div>
-              <div className="flex gap-[10px]"><span className="text-forest">✓</span> Single location</div>
+            <div>
+              <div className="mb-4 text-[13px] font-semibold uppercase tracking-[0.08em] text-cream/60">Everything is included</div>
+              <div className="flex flex-col gap-[12px] text-[15px] text-[#DDE7E0]">
+                <div className="flex gap-[10px]"><span className="text-pop">✓</span> Unlimited invoice uploads and Gmail scans</div>
+                <div className="flex gap-[10px]"><span className="text-pop">✓</span> Review queue with totals recomputed</div>
+                <div className="flex gap-[10px]"><span className="text-pop">✓</span> Clover sales sync and food-cost view</div>
+                <div className="flex gap-[10px]"><span className="text-pop">✓</span> Price alerts at 5% and big moves at 20%</div>
+                <div className="flex gap-[10px]"><span className="text-pop">✓</span> Recipe costing and Ask InvoiceIQ</div>
+                <div className="flex gap-[10px]"><span className="text-pop">✓</span> Multiple restaurants under one account</div>
+              </div>
             </div>
-            <Link
-              href="/login"
-              className="mt-auto rounded-[9px] border border-ink px-4 py-[13px] text-center text-[15px] font-semibold text-ink hover:bg-ink/[0.04]"
-            >
-              Get started free
-            </Link>
           </div>
-          {/* Pro */}
-          <div className="relative flex flex-col rounded-[18px] bg-coal px-8 py-[34px] text-[#EDEFE8] shadow-[0_30px_60px_-28px_rgba(23,19,16,.55)]">
-            <div className="absolute right-[26px] top-[22px] rounded-full bg-pop/20 px-[11px] py-[5px] text-[11px] font-semibold uppercase tracking-[0.06em] text-[#F9A8D4]">
-              Most popular
-            </div>
-            <div className="text-[15px] font-semibold text-pop">Pro</div>
-            <div className="mb-[6px] mt-4 flex items-baseline gap-1">
-              <span className="font-serif text-[52px] leading-none text-cream">Free during beta</span>
-            </div>
-            <p className="mb-[22px] text-[14px] text-[#C9C2B4]">
-              Pro pricing launches Q4 2026 · early users lock in a 50% discount
-            </p>
-            <div className="mb-7 flex flex-col gap-[11px] text-[14.5px] text-[#DDE7E0]">
-              <div className="flex gap-[10px]"><span className="text-pop">✓</span> Unlimited invoices</div>
-              <div className="flex gap-[10px]"><span className="text-pop">✓</span> Multi-location</div>
-              <div className="flex gap-[10px]"><span className="text-pop">✓</span> Margin &amp; food-cost analytics</div>
-              <div className="flex gap-[10px]"><span className="text-pop">✓</span> Priority support</div>
-            </div>
-            <Link
-              href="/login"
-              className="mt-auto rounded-[9px] bg-terracotta px-4 py-[14px] text-center text-[15px] font-semibold text-[#FDF8F0] shadow-[0_4px_14px_rgba(196,100,45,.4)] hover:bg-terracotta-hover"
-            >
-              Join the beta
-            </Link>
-          </div>
+        </div>
+        <p className="mt-6 text-center text-[14px] text-ink-muted">Running more than one location? Each active location is $99/month.</p>
+      </section>
+
+      {/* INTEGRATIONS */}
+      <section className="mx-auto max-w-[1240px] px-6 pb-20 md:px-10">
+        <div className="mb-9 text-center">
+          <div className="mb-3 text-[12.5px] font-semibold uppercase tracking-[0.1em] text-terracotta">Connections</div>
+          <h2 className="font-serif text-[34px] font-normal leading-[1.05] text-ink md:text-[44px]">Plugged into the tools already on your counter.</h2>
+        </div>
+        <div className="grid grid-cols-1 gap-[18px] sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-[14px] border border-ink/[0.08] bg-cream-surface px-6 py-6"><div className="font-display text-[20px] font-bold text-ink">Clover</div><p className="mt-2 text-[14.5px] leading-[1.55] text-ink-3">Daily sales sync, so purchases can be matched to what actually sold.</p></div>
+          <div className="rounded-[14px] border border-ink/[0.08] bg-cream-surface px-6 py-6"><div className="font-display text-[20px] font-bold text-ink">Gmail</div><p className="mt-2 text-[14.5px] leading-[1.55] text-ink-3">Read-only scanning for supplier invoices. Every find waits for your approval.</p></div>
+          <div className="rounded-[14px] border border-ink/[0.08] bg-cream-surface px-6 py-6"><div className="font-display text-[20px] font-bold text-ink">Photo · PDF · CSV</div><p className="mt-2 text-[14.5px] leading-[1.55] text-ink-3">The formats paper and portals actually give you — no special feed required.</p></div>
+          <div className="rounded-[14px] border border-ink/[0.08] bg-cream-surface px-6 py-6"><div className="font-display text-[20px] font-bold text-ink">Stripe</div><p className="mt-2 text-[14.5px] leading-[1.55] text-ink-3">Secure subscription billing, receipts, and payment history inside Settings.</p></div>
+        </div>
+        <p className="mt-5 text-center text-[14px] text-ink-muted">No Clover? You can still track purchases, prices, and recipes from invoices alone.</p>
+      </section>
+
+      {/* FAQ */}
+      <section id="faq" className="mx-auto max-w-[900px] scroll-mt-8 px-6 pb-24 md:px-10">
+        <div className="mb-9 text-center">
+          <div className="mb-3 text-[12.5px] font-semibold uppercase tracking-[0.1em] text-terracotta">FAQ</div>
+          <h2 className="font-serif text-[34px] font-normal leading-[1.05] text-ink md:text-[44px]">Straight answers before you sign up.</h2>
+        </div>
+        <div className="divide-y divide-ink/[0.08] rounded-[16px] border border-ink/[0.08] bg-cream-surface px-6">
+          <details className="group py-5">
+            <summary className="cursor-pointer text-[16.5px] font-semibold text-ink">How accurate is the reading?</summary>
+            <p className="mt-3 text-[15px] leading-[1.6] text-ink-3">The AI reads the document, then the totals are recomputed in code. In hand-checked pilot samples, field accuracy was above 99%. Anything that does not reconcile waits in Review instead of entering your reports.</p>
+          </details>
+          <details className="group py-5">
+            <summary className="cursor-pointer text-[16.5px] font-semibold text-ink">How long does setup take?</summary>
+            <p className="mt-3 text-[15px] leading-[1.6] text-ink-3">Minutes. Create the account, name the restaurant, and add a first invoice. There is no onboarding call and no implementation project.</p>
+          </details>
+          <details className="group py-5">
+            <summary className="cursor-pointer text-[16.5px] font-semibold text-ink">What kinds of invoices work?</summary>
+            <p className="mt-3 text-[15px] leading-[1.6] text-ink-3">Photos, PDFs, CSVs, and invoices found in Gmail — including Restaurant Depot checkout receipts, cash-and-carry bills, local wholesalers, and handwritten slips. Handwriting and unclear reads are routed to Review.</p>
+          </details>
+          <details className="group py-5">
+            <summary className="cursor-pointer text-[16.5px] font-semibold text-ink">Do I need Clover?</summary>
+            <p className="mt-3 text-[15px] leading-[1.6] text-ink-3">No. Invoice capture, price tracking, and recipes work from invoices alone. Connect Clover when you want purchases matched against sales for the food-cost view.</p>
+          </details>
+          <details className="group py-5">
+            <summary className="cursor-pointer text-[16.5px] font-semibold text-ink">What happens if a read is wrong?</summary>
+            <p className="mt-3 text-[15px] leading-[1.6] text-ink-3">Fix the supplier name or a line in Review, approve it when it is right, or deny an email import that should not be there. Only approved invoices count toward spend and food cost.</p>
+          </details>
+          <details className="group py-5">
+            <summary className="cursor-pointer text-[16.5px] font-semibold text-ink">What does it cost after the trial?</summary>
+            <p className="mt-3 text-[15px] leading-[1.6] text-ink-3">$99 per location per month. The trial lasts 14 days and does not require a card. You can cancel from billing settings.</p>
+          </details>
+          <details className="group py-5">
+            <summary className="cursor-pointer text-[16.5px] font-semibold text-ink">Is my restaurant&apos;s data private?</summary>
+            <p className="mt-3 text-[15px] leading-[1.6] text-ink-3">Each restaurant&apos;s records are isolated and scoped to its members. Gmail access is read-only, and email imports stay quarantined in Review until a person approves them.</p>
+          </details>
         </div>
       </section>
 
       {/* FINAL CTA */}
       <section id="cta" className="mx-auto mb-5 max-w-[1240px] px-6 md:px-10">
         <div className="rounded-[22px] border border-white/10 bg-coal px-6 py-[72px] text-center md:px-10">
-          <h2 className="mb-[26px] font-serif text-[40px] font-normal leading-[1.02] tracking-[-1px] text-cream md:text-[56px]">
-            Find out what you&apos;re <span className="italic text-terracotta">overpaying</span> for.
+          <h2 className="mb-[18px] font-serif text-[40px] font-normal leading-[1.02] tracking-[-1px] text-cream md:text-[56px]">
+            Find the leak before the month is gone.
           </h2>
-          <div className="mx-auto flex max-w-[480px] gap-[10px]">
-            <input
-              type="email"
-              placeholder="you@restaurant.com"
-              className="min-w-0 flex-1 rounded-[9px] border border-white/20 bg-white/[0.06] px-4 py-[15px] text-[15px] text-cream outline-none placeholder:text-cream/40"
-            />
-            <Link
-              href="/login"
-              className="flex items-center justify-center whitespace-nowrap rounded-[9px] bg-terracotta px-6 py-[15px] text-[15px] font-semibold text-[#FDF8F0] shadow-[0_2px_8px_rgba(196,100,45,.3)] hover:bg-terracotta-hover"
-            >
-              Get started
+          <p className="mx-auto mb-[28px] max-w-[560px] text-[16.5px] leading-[1.6] text-cream/65">
+            Bring one real invoice. If the numbers are not clearer by the end of the trial, walk away with nothing owed.
+          </p>
+          <div className="flex flex-col justify-center gap-[10px] sm:flex-row">
+            <Link href="/signup" className="flex items-center justify-center whitespace-nowrap rounded-[9px] bg-terracotta px-7 py-[15px] text-[15px] font-semibold text-[#FDF8F0] shadow-[0_2px_8px_rgba(196,100,45,.3)] hover:bg-terracotta-hover">
+              Start your free trial
+            </Link>
+            <Link href="#pricing" className="flex items-center justify-center whitespace-nowrap rounded-[9px] border border-white/25 px-7 py-[15px] text-[15px] font-semibold text-cream transition hover:bg-white/[0.07]">
+              See the $99 plan
             </Link>
           </div>
-          <p className="mt-[14px] text-[13.5px] text-cream/50">
-            Free while you have &lt; 100 invoices/month · No card required
-          </p>
-          <Link
-            href="/login"
-            className="mt-[10px] inline-block text-[13.5px] font-medium text-[#F9A8D4] hover:text-pop"
-          >
-            Or book a 15-min demo →
-          </Link>
+          <p className="mt-[16px] text-[13.5px] text-cream/50">14 days free · No card required · Cancel anytime</p>
         </div>
       </section>
 
       {/* FOOTER */}
       <footer className="mx-auto flex max-w-[1240px] flex-wrap items-center justify-between gap-4 px-6 py-10 md:px-10">
-        <div className="flex items-center gap-2 text-[13.5px] text-ink-muted">
+        <div className="flex flex-wrap items-center gap-2 text-[13.5px] text-ink-muted">
           <span className="font-display text-[19px] font-extrabold tracking-tight text-ink">
             InvoiceIQ<span className="text-terracotta">.</span>
           </span>
           <span className="mx-1">·</span> hello@getinvoiceiq.com
         </div>
-        <div className="flex gap-[22px] text-[13.5px]">
-          <Link href="#" className="text-ink-muted hover:text-ink-2">Terms</Link>
-          <Link href="#" className="text-ink-muted hover:text-ink-2">Privacy</Link>
-          <Link href="#" className="text-ink-muted hover:text-ink-2">Twitter</Link>
-          <Link href="#" className="text-ink-muted hover:text-ink-2">LinkedIn</Link>
+        <div className="flex flex-wrap gap-[22px] text-[13.5px]">
+          <Link href="#features" className="text-ink-muted hover:text-ink-2">Features</Link>
+          <Link href="#pricing" className="text-ink-muted hover:text-ink-2">Pricing</Link>
+          <Link href="/terms" className="text-ink-muted hover:text-ink-2">Terms</Link>
+          <Link href="/privacy" className="text-ink-muted hover:text-ink-2">Privacy</Link>
+          <Link href="/login" className="text-ink-muted hover:text-ink-2">Sign in</Link>
         </div>
       </footer>
     </div>
