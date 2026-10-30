@@ -264,7 +264,13 @@ export default function SettingsPage() {
     try {
       // Via the activity store: visible in the Activity panel too.
       const json = await activity.startCloverSync()
-      setSyncMsg(`Synced ${json.count} sales records.`)
+      setSyncMsg(
+        `Synced ${json.count} sales records.${
+          json.expand_used && json.expand_used !== 'lineItems,discounts,refunds,orderType,payments'
+            ? ` Limited fields for this app: ${json.expand_used}`
+            : ''
+        }`
+      )
     } catch (e: any) {
       setSyncMsg(e.message || 'Sync failed')
     }

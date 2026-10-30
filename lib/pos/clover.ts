@@ -123,6 +123,8 @@ export interface SalesBreakdownRow {
 export interface CloverSalesAggregates {
   daily: DailySales[]
   breakdowns: SalesBreakdownRow[]
+  /** Which expansion set the API accepted (ladder winner). */
+  expandUsed: string | null
 }
 
 interface RichPayment {
@@ -162,6 +164,7 @@ export async function fetchCloverSalesAggregates(
 
   let orders: RefCloverOrder[] | null = null
   let lastError: Error | null = null
+  let expandUsed: string | null = null
   // Clover gates each expandable field behind an app permission and
   // 403s the WHOLE call ("Invalid permissions for expandable
   // fields") when one is missing \u2014 with no hint which. Walk down
@@ -188,6 +191,7 @@ export async function fetchCloverSalesAggregates(
   for (const expand of EXPANSIONS) {
     try {
       orders = await fetchOrders(expand)
+      expandUsed = expand
       break
     } catch (e) {
       lastError = e as Error
@@ -270,7 +274,7 @@ export async function fetchCloverSalesAggregates(
     }
   }
 
-  return { daily, breakdowns: [...byKey.values()] }
+  return { daily, breakdowns: [...byKey.values()], expandUsed }
 }
 
 /** Back-compat wrapper: daily totals only. */

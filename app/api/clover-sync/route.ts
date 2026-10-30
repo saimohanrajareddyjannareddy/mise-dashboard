@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
       daily_days: r.dailyDays,
       breakdown_rows: r.breakdownRows,
       breakdown_error: r.breakdownError,
+      expand_used: r.expandUsed,
     })
   } catch (e) {
     if (e instanceof CloverSyncError) {
