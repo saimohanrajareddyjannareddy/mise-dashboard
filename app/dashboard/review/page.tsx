@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { useRestaurant } from '@/lib/restaurant'
-import { ClipboardCheck, CheckCircle, AlertTriangle, ArrowRight } from 'lucide-react'
+import { ClipboardCheck, CheckCircle, AlertTriangle, ArrowRight, Pencil } from 'lucide-react'
 
 type ReviewInvoice = {
   id: string
@@ -33,6 +33,9 @@ export default function ReviewPage() {
   const [errorMsg, setErrorMsg] = useState('')
   const [approvingId, setApprovingId] = useState<string | null>(null)
   const [denyingId, setDenyingId] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [nameDraft, setNameDraft] = useState('')
+  const [savingNameId, setSavingNameId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     if (!restaurantId) return
@@ -55,6 +58,42 @@ export default function ReviewPage() {
   useEffect(() => {
     load()
   }, [load])
+
+  // The parser stores 'Unknown' when it can't read a supplier (the
+  // same rule lib/review-flags flags). Such an invoice must be
+  // nameable HERE — before this, the name could only be fixed in the
+  // upload preview, so email-scanned invoices were stuck as Unknown.
+  function missingVendor(v: string | null): boolean {
+    return !v || v.trim().toLowerCase() === 'unknown'
+  }
+
+  async function saveName(r: ReviewInvoice) {
+    const name = nameDraft.trim()
+    if (!name) return
+    setSavingNameId(r.id)
+    setErrorMsg('')
+    // Drop the supplier clause from the stored reason; other flags stay.
+    const remaining = (r.review_reason || '')
+      .split('; ')
+      .filter((f) => f && f !== 'Supplier name could not be read')
+    const { error } = await supabase
+      .from('invoice_headers')
+      .update({ vendor: name, review_reason: remaining.length ? remaining.join('; ') : null })
+      .eq('id', r.id)
+    if (error) {
+      setErrorMsg(error.message)
+    } else {
+      setRows((prev) =>
+        prev.map((row) =>
+          row.id === r.id
+            ? { ...row, vendor: name, review_reason: remaining.length ? remaining.join('; ') : null }
+            : row
+        )
+      )
+      setEditingId(null)
+    }
+    setSavingNameId(null)
+  }
 
   async function approve(id: string) {
     setApprovingId(id)
@@ -164,8 +203,58 @@ export default function ReviewPage() {
                 {rows.map((r) => (
                   <tr key={r.id} className="border-b last:border-0 hover:bg-gray-50">
                     <td className="px-4 py-3">
-                      <div className="font-medium text-gray-900">{r.vendor || 'Unknown vendor'}</div>
-                      {r.invoice_number && <div className="text-xs text-gray-400">#{r.invoice_number}</div>}
+                      {editingId === r.id ? (
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            autoFocus
+                            value={nameDraft}
+                            onChange={(e) => setNameDraft(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') saveName(r)
+                              if (e.key === 'Escape') setEditingId(null)
+                            }}
+                            placeholder="Supplier name"
+                            className="w-36 rounded-lg border px-2 py-1.5 text-sm text-gray-900 outline-none focus:border-pop"
+                          />
+                          <button
+                            onClick={() => saveName(r)}
+                            disabled={savingNameId === r.id || !nameDraft.trim()}
+                            className="px-2.5 py-1.5 bg-pop text-white rounded-lg text-xs font-medium hover:bg-pop-hover disabled:opacity-50 transition"
+                          >
+                            {savingNameId === r.id ? 'Saving…' : 'Save'}
+                          </button>
+                          <button
+                            onClick={() => setEditingId(null)}
+                            className="px-2 py-1.5 text-xs text-gray-500 hover:text-gray-700"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <div>
+                            <div className={`font-medium ${missingVendor(r.vendor) ? 'text-amber-700' : 'text-gray-900'}`}>
+                              {missingVendor(r.vendor) ? 'Unknown' : r.vendor}
+                            </div>
+                            {r.invoice_number && <div className="text-xs text-gray-400">#{r.invoice_number}</div>}
+                          </div>
+                          <button
+                            onClick={() => {
+                              setEditingId(r.id)
+                              setNameDraft(missingVendor(r.vendor) ? '' : r.vendor)
+                            }}
+                            title={missingVendor(r.vendor) ? 'Add supplier name' : 'Edit supplier name'}
+                            className={`flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium transition ${
+                              missingVendor(r.vendor)
+                                ? 'bg-pop text-white hover:bg-pop-hover'
+                                : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'
+                            }`}
+                          >
+                            <Pencil size={11} />
+                            {missingVendor(r.vendor) ? 'Add name' : ''}
+                          </button>
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-gray-600">{r.invoice_date || '—'}</td>
                     <td className="px-4 py-3 text-right font-semibold text-gray-900">
