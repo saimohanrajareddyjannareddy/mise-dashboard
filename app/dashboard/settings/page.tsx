@@ -30,6 +30,7 @@ export default function SettingsPage() {
   const [oauthEnv, setOauthEnv] = useState('')
   const [oauthConnected, setOauthConnected] = useState(false)
   const [cloverBanner, setCloverBanner] = useState<string | null>(null)
+  const [disconnecting, setDisconnecting] = useState(false)
 
   // Billing state
   const [billingConfigured, setBillingConfigured] = useState(false)
@@ -269,6 +270,28 @@ export default function SettingsPage() {
     setMailMsg('Email disconnected.')
   }
 
+  async function disconnectClover() {
+    if (!restaurantId) return
+    if (!window.confirm('Disconnect Clover? Sales sync will stop until you reconnect.')) return
+    setDisconnecting(true)
+    try {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData.session?.access_token
+      if (!token) throw new Error('Sign in required')
+      const resp = await fetch('/api/clover/disconnect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ restaurant_id: restaurantId }),
+      })
+      const json = await resp.json()
+      if (!resp.ok) throw new Error(json.error || 'Disconnect failed')
+      window.location.reload()
+    } catch (e) {
+      setCloverBanner(e instanceof Error ? e.message : 'Disconnect failed')
+      setDisconnecting(false)
+    }
+  }
+
   async function triggerSync() {
     setSyncing(true); setSyncMsg('')
     try {
@@ -426,8 +449,29 @@ export default function SettingsPage() {
 
         {oauthConnected ? (
           <div className="mb-5 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-            Connected with Clover — nothing to copy or manage. Your access token is stored
-            encrypted, and sales sync uses it automatically.
+            <p>
+              Connected with Clover — nothing to copy or manage. Your access token is stored
+              encrypted, and sales sync uses it automatically.
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <a
+                href={`/api/clover/connect?restaurant_id=${restaurantId}`}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3.5 py-1.5 text-[13px] font-medium text-white hover:bg-green-700 transition"
+              >
+                <Link2 size={13} /> Reconnect
+              </a>
+              <button
+                onClick={disconnectClover}
+                disabled={disconnecting}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3.5 py-1.5 text-[13px] font-medium text-red-600 hover:bg-red-50 disabled:opacity-50 transition"
+              >
+                {disconnecting ? 'Disconnecting…' : 'Disconnect'}
+              </button>
+              <span className="text-xs text-green-600">
+                Reconnect after changing the app&apos;s permissions in Clover — the fresh
+                token picks them up.
+              </span>
+            </div>
           </div>
         ) : oauthConfigured ? (
           <div className="mb-5">
