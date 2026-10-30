@@ -187,7 +187,7 @@ export default function ReviewPage() {
           {errorMsg && (
             <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4 text-sm text-red-700">{errorMsg}</div>
           )}
-          <div className="bg-white rounded-xl border overflow-hidden">
+          <div className="hidden md:block bg-white rounded-xl border overflow-hidden">
             <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
             <table className="w-full min-w-[640px] text-sm">
               <thead className="bg-gray-50 border-b">
@@ -290,6 +290,91 @@ export default function ReviewPage() {
               </tbody>
             </table>
             </div>
+          </div>
+
+          {/* Mobile: stacked cards — no sideways table on a phone. */}
+          <div className="space-y-3 md:hidden">
+            {rows.map((r) => (
+              <div key={r.id} className="rounded-xl border bg-white p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className={`font-semibold ${missingVendor(r.vendor) ? 'text-amber-700' : 'text-gray-900'}`}>
+                      {missingVendor(r.vendor) ? 'Unknown' : r.vendor}
+                    </div>
+                    <div className="mt-0.5 text-xs text-gray-400">
+                      {r.invoice_date || 'No date'}
+                      {r.invoice_number ? ` · #${r.invoice_number}` : ''}
+                    </div>
+                  </div>
+                  <div className="text-lg font-bold text-gray-900">
+                    {r.total != null ? `$${r.total.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '—'}
+                  </div>
+                </div>
+
+                {editingId === r.id ? (
+                  <div className="mt-3 flex items-center gap-1.5">
+                    <input
+                      autoFocus
+                      value={nameDraft}
+                      onChange={(e) => setNameDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') saveName(r)
+                        if (e.key === 'Escape') setEditingId(null)
+                      }}
+                      placeholder="Supplier name"
+                      className="min-w-0 flex-1 rounded-lg border px-3 py-2 text-sm text-gray-900 outline-none focus:border-pop"
+                    />
+                    <button
+                      onClick={() => saveName(r)}
+                      disabled={savingNameId === r.id || !nameDraft.trim()}
+                      className="px-3 py-2 bg-pop text-white rounded-lg text-sm font-medium hover:bg-pop-hover disabled:opacity-50 transition"
+                    >
+                      {savingNameId === r.id ? 'Saving…' : 'Save'}
+                    </button>
+                    <button onClick={() => setEditingId(null)} className="px-2 py-2 text-sm text-gray-500">
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  missingVendor(r.vendor) && (
+                    <button
+                      onClick={() => {
+                        setEditingId(r.id)
+                        setNameDraft('')
+                      }}
+                      className="mt-3 flex items-center gap-1.5 rounded-lg bg-pop px-3 py-2 text-sm font-medium text-white hover:bg-pop-hover"
+                    >
+                      <Pencil size={13} /> Add supplier name
+                    </button>
+                  )
+                )}
+
+                <p className="mt-3 text-sm text-amber-700">{r.review_reason || 'Flagged for review'}</p>
+
+                <div className="mt-4 flex items-center gap-2">
+                  <button
+                    onClick={() => approve(r.id)}
+                    disabled={approvingId === r.id}
+                    className="flex-1 px-3 py-2.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition"
+                  >
+                    {approvingId === r.id ? 'Approving…' : 'Approve'}
+                  </button>
+                  <button
+                    onClick={() => deny(r.id)}
+                    disabled={denyingId === r.id}
+                    className="px-3 py-2.5 bg-white border border-red-200 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50 disabled:opacity-50 transition"
+                  >
+                    {denyingId === r.id ? 'Denying…' : 'Deny'}
+                  </button>
+                  <Link
+                    href={`/dashboard/invoices/${r.id}`}
+                    className="flex items-center gap-1 px-3 py-2.5 bg-white border rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition"
+                  >
+                    Inspect <ArrowRight size={13} />
+                  </Link>
+                </div>
+              </div>
+            ))}
           </div>
         </>
       )}

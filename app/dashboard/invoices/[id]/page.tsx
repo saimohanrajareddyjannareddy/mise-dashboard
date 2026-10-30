@@ -150,7 +150,7 @@ export default function InvoiceDetailPage() {
             <div className="px-5 py-3 border-b bg-gray-50">
               <h2 className="font-semibold text-gray-700 text-sm">{regular.length} Line Items</h2>
             </div>
-            <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <div className="hidden md:block print:block overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
             <table className="w-full text-sm">
               <thead className="border-b">
                 <tr className="text-gray-400 text-xs uppercase tracking-wide">
@@ -178,6 +178,23 @@ export default function InvoiceDetailPage() {
               </tbody>
             </table>
             </div>
+            <div className="divide-y md:hidden print:hidden">
+              {regular.map(line => (
+                <div key={line.id} className="px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="font-medium text-gray-900">{line.display_name || line.item_name}</span>
+                    <span className="font-semibold text-gray-900">${Number(line.total).toFixed(2)}</span>
+                  </div>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                    <span className={`px-2 py-0.5 rounded-full ${CATEGORY_COLORS[line.category] || CATEGORY_COLORS.Other}`}>
+                      {line.category || 'Other'}
+                    </span>
+                    <span>{qtyLabel(line)}</span>
+                    {line.unit_price ? <span>@ ${Number(line.unit_price).toFixed(2)}</span> : null}
+                  </div>
+                </div>
+              ))}
+            </div>
           </>
         )}
 
@@ -186,7 +203,7 @@ export default function InvoiceDetailPage() {
             <div className="px-5 py-3 border-t border-b bg-red-50">
               <h2 className="font-semibold text-red-700 text-sm">{credits.length} Credit{credits.length > 1 ? 's' : ''} / Return{credits.length > 1 ? 's' : ''}</h2>
             </div>
-            <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <div className="hidden md:block print:block overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
             <table className="w-full text-sm">
               <thead className="border-b bg-red-50">
                 <tr className="text-red-400 text-xs uppercase tracking-wide">
@@ -213,6 +230,23 @@ export default function InvoiceDetailPage() {
                 ))}
               </tbody>
             </table>
+            </div>
+            <div className="divide-y md:hidden print:hidden">
+              {credits.map(line => (
+                <div key={line.id} className="bg-red-50/50 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="font-medium text-red-800">{line.display_name || line.item_name}</span>
+                    <span className="font-semibold text-red-600">${Number(line.total).toFixed(2)}</span>
+                  </div>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-red-600">
+                    <span className={`px-2 py-0.5 rounded-full ${CATEGORY_COLORS[line.category] || CATEGORY_COLORS.Other}`}>
+                      {line.category || 'Other'}
+                    </span>
+                    <span>{qtyLabel(line)}</span>
+                    {line.unit_price ? <span>@ ${Number(line.unit_price).toFixed(2)}</span> : null}
+                  </div>
+                </div>
+              ))}
             </div>
             <div className="px-5 py-3 border-t bg-red-50 text-right text-sm font-semibold text-red-700">
               Total Credits: ${creditTotal.toFixed(2)}

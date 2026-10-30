@@ -108,7 +108,7 @@ export default function WastagePage() {
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 gap-4 mb-8 sm:grid-cols-3">
         <div className="bg-white rounded-xl border p-5">
           <div className="text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">Total Purchased</div>
           <div className="text-2xl font-bold text-gray-900">${totalPurchased.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>

@@ -83,7 +83,7 @@ export default function SearchPage() {
       </div>
 
       {searched && !loading && results.length > 0 && (
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 gap-4 mb-6 sm:grid-cols-3">
           {[
             { label: 'Purchases found', value: results.length.toString() },
             { label: 'Total spend', value: `$${totalSpend.toLocaleString('en-US', { minimumFractionDigits: 2 })}` },

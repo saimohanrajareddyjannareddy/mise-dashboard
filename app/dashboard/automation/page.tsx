@@ -196,7 +196,7 @@ export default function AutomationPage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Kpi
           icon={<Activity size={16} className="text-pop" />}
           label="Last 7 days"

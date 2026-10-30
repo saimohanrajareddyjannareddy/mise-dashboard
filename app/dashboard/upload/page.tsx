@@ -593,18 +593,18 @@ export default function UploadPage() {
                     value={vendorEdit}
                     onChange={e => setVendorEdit(e.target.value)}
                     placeholder={parsed.vendor && !/^unknown/i.test(parsed.vendor.trim()) ? parsed.vendor : 'Type the supplier name…'}
-                    className="font-semibold text-gray-800 border border-gray-200 rounded-md px-2 py-1 hover:border-gray-300 focus:border-amber-400 focus:outline-none bg-white min-w-[240px]"
+                    className="font-semibold text-gray-800 border border-gray-200 rounded-md px-2 py-1 hover:border-gray-300 focus:border-pop focus:outline-none bg-white min-w-[240px]"
                   />
                 </div>
                 <div className="text-sm text-gray-500 flex items-center gap-1.5 flex-wrap">
                   <input type="date" value={parsed.invoice_date || ''}
                     onChange={e => setParsed(prev => prev ? { ...prev, invoice_date: e.target.value || null } : prev)}
-                    className="border border-gray-200 rounded-md px-1.5 py-0.5 text-sm text-gray-600 focus:border-amber-400 focus:outline-none bg-white" />
+                    className="border border-gray-200 rounded-md px-1.5 py-0.5 text-sm text-gray-600 focus:border-pop focus:outline-none bg-white" />
                   <span>· Invoice #</span>
                   <input value={parsed.invoice_number || ''}
                     onChange={e => setParsed(prev => prev ? { ...prev, invoice_number: e.target.value || null } : prev)}
                     placeholder="—"
-                    className="border border-gray-200 rounded-md px-1.5 py-0.5 text-sm text-gray-600 focus:border-amber-400 focus:outline-none bg-white w-24" />
+                    className="border border-gray-200 rounded-md px-1.5 py-0.5 text-sm text-gray-600 focus:border-pop focus:outline-none bg-white w-24" />
                   <span>· {regular.length} items{credits.length > 0 && `, ${credits.length} credit${credits.length > 1 ? 's' : ''}`}</span>
                 </div>
               </div>
@@ -654,7 +654,7 @@ export default function UploadPage() {
           })()}
 
           <div className="bg-white rounded-xl border overflow-hidden mb-6">
-            <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <div className="hidden lg:block overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
             <table className="w-full min-w-[680px] text-sm">
               <thead className="bg-gray-50 border-b">
                 <tr className="text-gray-400 text-xs uppercase tracking-wide">
@@ -670,7 +670,7 @@ export default function UploadPage() {
               <tbody>
                 {parsed.items.map((item, i) => {
                   const neg = (item.total || 0) < 0
-                  const inputCls = `w-full bg-transparent border border-transparent rounded px-1.5 py-1 hover:border-gray-300 focus:border-amber-400 focus:outline-none ${neg ? 'text-red-700' : ''}`
+                  const inputCls = `w-full bg-transparent border border-transparent rounded px-1.5 py-1 hover:border-gray-300 focus:border-pop focus:outline-none ${neg ? 'text-red-700' : ''}`
                   return (
                     <tr key={i} className={`border-b last:border-0 ${neg ? 'bg-red-50' : 'hover:bg-gray-50'}`}>
                       <td className="px-3 py-2">
@@ -687,7 +687,7 @@ export default function UploadPage() {
                       <td className="px-3 py-2">
                         <select value={item.category}
                           onChange={e => updateItem(i, { category: e.target.value })}
-                          className="text-xs border border-transparent rounded px-1.5 py-1 bg-transparent hover:border-gray-300 focus:border-amber-400 focus:outline-none">
+                          className="text-xs border border-transparent rounded px-1.5 py-1 bg-transparent hover:border-gray-300 focus:border-pop focus:outline-none">
                           {Array.from(new Set([...CATEGORIES, item.category])).map(c => (
                             <option key={c} value={c}>{c}</option>
                           ))}
@@ -701,7 +701,7 @@ export default function UploadPage() {
                       <td className="px-3 py-2">
                         <select value={item.purchase_unit}
                           onChange={e => updateItem(i, { purchase_unit: e.target.value })}
-                          className="text-xs border border-transparent rounded px-1.5 py-1 bg-transparent hover:border-gray-300 focus:border-amber-400 focus:outline-none">
+                          className="text-xs border border-transparent rounded px-1.5 py-1 bg-transparent hover:border-gray-300 focus:border-pop focus:outline-none">
                           {['lb', 'each', 'case'].map(u => <option key={u} value={u}>{u}</option>)}
                         </select>
                       </td>
@@ -724,6 +724,70 @@ export default function UploadPage() {
                 })}
               </tbody>
             </table>
+            </div>
+            {/* Mobile/tablet: stacked line editor — same updateItem
+                handlers, touch-sized inputs with visible borders. */}
+            <div className="divide-y lg:hidden">
+              {parsed.items.map((item, i) => {
+                const neg = (item.total || 0) < 0
+                const mCls = `w-full rounded-md border border-gray-200 bg-white px-2 py-1.5 focus:border-pop focus:outline-none ${neg ? 'text-red-700' : ''}`
+                const lbl = 'block text-[11px] font-medium uppercase tracking-wide text-gray-400 mb-1'
+                return (
+                  <div key={i} className={`px-4 py-3 ${neg ? 'bg-red-50' : ''}`}>
+                    <div className="flex items-start gap-2">
+                      <input value={item.display_name}
+                        onChange={e => {
+                          const v = e.target.value
+                          updateItem(i, item.item_name === '' || item.item_name === item.display_name
+                            ? { display_name: v, item_name: v }
+                            : { display_name: v })
+                        }}
+                        className={`${mCls} font-medium text-gray-900`} />
+                      <button onClick={() => removeItem(i)} title="Remove this line"
+                        className="mt-1 shrink-0 rounded-md border border-gray-200 bg-white p-1.5 text-gray-400 hover:text-red-500 transition"><X size={15} /></button>
+                    </div>
+                    {neg && <span className="mt-1 block text-xs text-red-500">(credit/return)</span>}
+                    <div className="mt-2.5 grid grid-cols-2 gap-2.5">
+                      <div>
+                        <span className={lbl}>Category</span>
+                        <select value={item.category}
+                          onChange={e => updateItem(i, { category: e.target.value })}
+                          className={mCls}>
+                          {Array.from(new Set([...CATEGORIES, item.category])).map(c => (
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <span className={lbl}>Unit</span>
+                        <select value={item.purchase_unit}
+                          onChange={e => updateItem(i, { purchase_unit: e.target.value })}
+                          className={mCls}>
+                          {['lb', 'each', 'case'].map(u => <option key={u} value={u}>{u}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <span className={lbl}>Qty</span>
+                        <input type="number" step="any" value={item.quantity}
+                          onChange={e => updateItem(i, { quantity: parseFloat(e.target.value) || 0 })}
+                          className={`${mCls} text-gray-600`} />
+                      </div>
+                      <div>
+                        <span className={lbl}>Unit price</span>
+                        <input type="number" step="any" value={item.unit_price}
+                          onChange={e => updateItem(i, { unit_price: parseFloat(e.target.value) || 0 })}
+                          className={`${mCls} text-gray-600`} />
+                      </div>
+                    </div>
+                    <div className="mt-2.5 flex items-center justify-between gap-3">
+                      <span className="text-[11px] font-medium uppercase tracking-wide text-gray-400">Total</span>
+                      <input type="number" step="any" value={item.total}
+                        onChange={e => updateItem(i, { total: parseFloat(e.target.value) || 0 })}
+                        className="w-32 rounded-md border border-gray-200 bg-white px-2 py-1.5 text-right font-semibold text-gray-900 focus:border-pop focus:outline-none" />
+                    </div>
+                  </div>
+                )
+              })}
             </div>
             <button onClick={addItem}
               className="w-full px-4 py-2.5 text-sm text-pop font-medium hover:bg-amber-50 transition border-t">

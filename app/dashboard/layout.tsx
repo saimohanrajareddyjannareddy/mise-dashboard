@@ -262,7 +262,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* CONTENT */}
       <div className="ml-0 flex min-w-0 flex-1 flex-col md:ml-60">
         {/* Top bar */}
-        <header className="sticky top-0 z-[5] flex items-center justify-between gap-3 border-b border-ink/[0.08] bg-cream/95 px-4 py-4 backdrop-blur md:gap-4 md:px-8">
+        <header className="sticky top-0 z-[5] flex items-center justify-between gap-2 border-b border-ink/[0.08] bg-cream/95 px-3 py-3 backdrop-blur sm:gap-3 md:gap-4 md:px-8 md:py-4">
           <div className="flex min-w-0 items-center gap-3">
             {/* Hamburger — mobile only; toggles the sidebar drawer. */}
             <button
@@ -275,7 +275,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <Menu size={18} />
             </button>
             <div className="min-w-0">
-              <h1 className="truncate font-display text-[28px] font-extrabold leading-none tracking-[-0.5px] text-ink">{greeting}</h1>
+              <h1 className="truncate font-display text-[21px] font-extrabold leading-none tracking-[-0.5px] text-ink md:text-[28px]">{greeting}</h1>
               {current && <p className="mt-1.5 truncate text-[13px] text-ink-muted">{current.name}</p>}
             </div>
           </div>

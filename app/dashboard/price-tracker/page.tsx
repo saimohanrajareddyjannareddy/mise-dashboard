@@ -72,7 +72,7 @@ export default function PriceTrackerPage() {
       </div>
 
       <div className="bg-white rounded-xl border overflow-hidden">
-        <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div className="hidden md:block overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b">
             <tr className="text-gray-500 text-xs uppercase tracking-wide">
@@ -108,6 +108,29 @@ export default function PriceTrackerPage() {
             ))}
           </tbody>
         </table>
+        </div>
+
+        {/* Mobile: one card per item, change up front */}
+        <div className="divide-y md:hidden">
+          {loading ? (
+            <div className="py-8 text-center text-sm text-gray-400">Loading...</div>
+          ) : filtered.length === 0 ? (
+            <div className="py-8 text-center text-sm text-gray-400">No price data available.</div>
+          ) : filtered.map(item => (
+            <div key={item.item_name} className="flex items-center justify-between gap-3 px-4 py-3.5">
+              <div className="min-w-0">
+                <div className="truncate font-medium text-gray-900">{item.display_name}</div>
+                <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
+                  <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">{item.category}</span>
+                  <span>${item.previous.toFixed(2)} → <span className="font-semibold text-gray-900">${item.current.toFixed(2)}</span> / {item.unit}</span>
+                </div>
+              </div>
+              <span className={`flex shrink-0 items-center gap-1 text-[15px] font-bold ${item.change > 0 ? 'text-red-500' : item.change < 0 ? 'text-green-500' : 'text-gray-400'}`}>
+                {item.change > 0 ? <TrendingUp size={16} /> : item.change < 0 ? <TrendingDown size={16} /> : <Minus size={16} />}
+                {item.change > 0 ? '+' : ''}{item.change.toFixed(1)}%
+              </span>
+            </div>
+          ))}
         </div>
       </div>
     </div>

@@ -149,10 +149,10 @@ export default function InvoicesPage() {
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
         <input value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Search by date, invoice #, or vendor..."
-          className="w-full border rounded-lg pl-9 pr-4 py-2 text-sm text-gray-700 focus:outline-none focus:border-amber-500" />
+          className="w-full border rounded-lg pl-9 pr-4 py-2 text-sm text-gray-700 focus:outline-none focus:border-pop" />
       </div>
 
-      <div className="bg-white rounded-xl border overflow-hidden">
+      <div className="hidden md:block bg-white rounded-xl border overflow-hidden">
         <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b">
@@ -170,7 +170,7 @@ export default function InvoicesPage() {
               <tr><td colSpan={4} className="text-center py-8 text-gray-400">No invoices for this vendor.</td></tr>
             ) : filtered.map(inv => (
               <tr key={inv.id} onClick={() => router.push(`/dashboard/invoices/${inv.id}`)}
-                className="border-b last:border-0 hover:bg-amber-50 cursor-pointer transition">
+                className="border-b last:border-0 hover:bg-pop/5 cursor-pointer transition">
                 <td className="px-4 py-3 text-gray-600">{inv.invoice_date}</td>
                 <td className="px-4 py-3 font-medium text-gray-900">#{inv.invoice_number}</td>
                 <td className="px-4 py-3 text-gray-600">{inv.vendor}</td>
@@ -180,6 +180,35 @@ export default function InvoicesPage() {
           </tbody>
         </table>
         </div>
+      </div>
+
+      {/* Mobile: tappable rows, vendor first */}
+      <div className="bg-white rounded-xl border overflow-hidden md:hidden">
+        {loading ? (
+          <div className="py-8 text-center text-sm text-gray-400">Loading...</div>
+        ) : filtered.length === 0 ? (
+          <div className="py-8 text-center text-sm text-gray-400">No invoices for this vendor.</div>
+        ) : (
+          <div className="divide-y">
+            {filtered.map(inv => (
+              <button
+                key={inv.id}
+                onClick={() => router.push(`/dashboard/invoices/${inv.id}`)}
+                className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left active:bg-pop/5"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate font-medium text-gray-900">{inv.vendor}</span>
+                  <span className="mt-0.5 block text-xs text-gray-400">
+                    {inv.invoice_date} · #{inv.invoice_number}
+                  </span>
+                </span>
+                <span className="text-[15px] font-bold text-gray-900">
+                  ${Number(inv.total).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
