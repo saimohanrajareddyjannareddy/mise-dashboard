@@ -142,7 +142,7 @@ export default function DashboardPage() {
     }`
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       {/* Range controls (drive the existing queries) */}
       <div className="mb-5 flex flex-wrap items-center justify-end gap-2">
         {(['weekly', 'monthly'] as const).map(r => (
@@ -250,7 +250,7 @@ export default function DashboardPage() {
                 />
                 <Tooltip
                   formatter={(v) => `$${Number(v).toLocaleString()}`}
-                  cursor={{ fill: 'rgba(30,58,47,0.06)' }}
+                  cursor={{ fill: 'rgba(23,19,16,0.06)' }}
                   contentStyle={{
                     borderRadius: 10,
                     border: '1px solid rgba(26,23,19,0.1)',
@@ -262,7 +262,7 @@ export default function DashboardPage() {
                 <Bar dataKey="total" radius={[6, 6, 0, 0]}>
                   {categoryData.map((_, i) => (
                     // Highlight the top (largest) category in terracotta; rest forest green.
-                    <Cell key={i} fill={i === 0 ? '#C4642D' : '#1E3A2F'} />
+                    <Cell key={i} fill={i === 0 ? '#EC4899' : '#171310'} />
                   ))}
                 </Bar>
               </BarChart>
@@ -281,7 +281,7 @@ export default function DashboardPage() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-[80px_1fr_auto] border-b border-ink/[0.08] pb-2 text-[11px] uppercase tracking-[0.06em] text-ink-muted">
+          <div className="hidden md:grid grid-cols-[80px_1fr_auto] border-b border-ink/[0.08] pb-2 text-[11px] uppercase tracking-[0.06em] text-ink-muted">
             <span>Date</span>
             <span>Vendor</span>
             <span className="text-right">Amount</span>
@@ -292,14 +292,15 @@ export default function DashboardPage() {
             recentInvoices.map(inv => (
               <div
                 key={inv.id}
-                className="grid grid-cols-[80px_1fr_auto] items-center border-b border-ink/[0.05] py-3 text-[14px] last:border-0"
+                className="flex items-center justify-between gap-3 border-b border-ink/[0.05] py-3 text-[14px] last:border-0"
               >
-                <span className="font-mono text-[12px] text-ink-3">{inv.invoice_date}</span>
-                <span className="min-w-0 pr-3">
+                <span className="min-w-0">
                   <span className="block truncate text-ink">{inv.vendor}</span>
-                  <span className="block truncate font-mono text-[11px] text-ink-muted">#{inv.invoice_number}</span>
+                  <span className="block truncate font-mono text-[11px] text-ink-muted">
+                    {inv.invoice_date} · #{inv.invoice_number}
+                  </span>
                 </span>
-                <span className="text-right font-mono text-ink">{money(Number(inv.total))}</span>
+                <span className="shrink-0 text-right font-mono text-ink">{money(Number(inv.total))}</span>
               </div>
             ))
           )}

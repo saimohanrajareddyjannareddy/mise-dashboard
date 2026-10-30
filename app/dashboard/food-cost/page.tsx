@@ -204,7 +204,7 @@ export default function FoodCostPage() {
 
   if (loading) {
     return (
-      <div className="p-8">
+      <div className="p-4 sm:p-8">
         <h1 className="font-serif text-[28px] text-ink">Food cost %</h1>
         <p className="mt-2 text-[13px] text-ink-muted">Loading…</p>
       </div>
@@ -212,7 +212,7 @@ export default function FoodCostPage() {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       <h1 className="font-serif text-[28px] text-ink">Food cost %</h1>
       <p className="mt-1 text-[13px] text-ink-muted">
         Invoice spend ÷ POS net sales (gross − discounts − refunds, tax excluded).

@@ -105,14 +105,14 @@ export default function InvoicesPage() {
   const scopeLabel = vendorTab === ALL ? 'All vendors' : vendorTab
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-4 sm:p-8">
+      <div className="flex flex-col items-start gap-3 mb-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 mb-1">Invoices</h1>
           <p className="text-gray-500 text-sm">All invoices — click to see line items.</p>
         </div>
         <button onClick={exportCSV}
-          className="flex items-center gap-2 px-4 py-2 bg-white border rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition">
+          className="flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 bg-white border rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition">
           <Download size={14} /> Export CSV
         </button>
       </div>
@@ -123,7 +123,7 @@ export default function InvoicesPage() {
           <button key={v} onClick={() => setVendorTab(v)}
             className={`whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium transition ${
               vendorTab === v
-                ? 'bg-amber-600 text-white'
+                ? 'bg-pop text-white'
                 : 'bg-white border text-gray-600 hover:bg-gray-50'
             }`}>
             {v === ALL ? 'All vendors' : v}

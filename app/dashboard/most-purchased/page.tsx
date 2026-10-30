@@ -35,7 +35,7 @@ export default function MostPurchasedPage() {
   }, [restaurantId])
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       <h1 className="text-2xl font-bold text-gray-900 mb-1">Most Purchased</h1>
       <p className="text-gray-500 text-sm mb-6">Items ranked by total spend across all invoices.</p>
 

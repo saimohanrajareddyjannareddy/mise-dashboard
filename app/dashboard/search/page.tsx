@@ -61,7 +61,7 @@ export default function SearchPage() {
   const avgPrice = results.length ? results.reduce((s, r) => s + (r.unit_price || 0), 0) / results.length : 0
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       <h1 className="text-2xl font-bold text-gray-900 mb-1">Item Search</h1>
       <p className="text-gray-500 text-sm mb-6">Search any ingredient across all invoices.</p>
 
