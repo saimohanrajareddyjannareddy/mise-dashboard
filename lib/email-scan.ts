@@ -382,7 +382,22 @@ export async function scanRestaurantMailbox(
           case_qty: item.purchase_unit === 'case' ? item.quantity : 0,
           unit_price: item.unit_price,
           total: item.total,
+          canonical_item_id: null as string | null,
         }))
+        // Resolve lines to the canonical catalog (see upload path).
+        {
+          const resolved = new Map<string, string | null>()
+          for (const li of lineItems) {
+            if (!resolved.has(li.item_name)) {
+              const { data: cid } = await sb.rpc('resolve_canonical_item', {
+                p_raw: li.item_name,
+                p_restaurant_id: restaurantId,
+              })
+              resolved.set(li.item_name, (cid as string | null) ?? null)
+            }
+            li.canonical_item_id = resolved.get(li.item_name) ?? null
+          }
+        }
         const { error: linesError } = await sb.from('invoice_lines').insert(lineItems)
         if (linesError) {
           result.errors.push(`${att.filename}: ${linesError.message}`)

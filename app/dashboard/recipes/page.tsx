@@ -433,7 +433,7 @@ export default function RecipesPage() {
                           >
                             {saving ? 'Saving…' : 'Save & confirm recipe'}
                           </button>
-                          {status === 'none' && (
+                          {status !== 'confirmed' && (
                             <button
                               onClick={() => draftWithAi(d.menuItemName)}
                               disabled={drafting != null}

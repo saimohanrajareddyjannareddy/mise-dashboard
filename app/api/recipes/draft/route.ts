@@ -2,16 +2,43 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
 /**
- * AI recipe draft: given a dish the POS sold, Claude proposes a
- * single-serving recipe using ONLY the restaurant's canonical
- * ingredients (exact names — recipes_estimated joins canonical_items
- * by name), saved as confidence='ai_inferred' for the owner to
- * review, edit and confirm on the Recipes page.
+ * AI recipe draft: given a dish the POS sold, Claude proposes the
+ * AUTHENTIC single-serving recipe. Ingredients the restaurant
+ * already buys (its canonical catalog) are preferred by exact name;
+ * genuine essentials the catalog lacks (a batter flour, a dal) are
+ * added in clean canonical format and created as new catalog items
+ * — the catalog grows from the menu, not only from invoices.
+ * Saved as confidence='ai_inferred' for the owner to review, edit
+ * and confirm on the Recipes page.
  *
  * Refuses to overwrite a user-confirmed recipe.
  */
 
 const UNITS = ['oz', 'lb', 'each', 'floz', 'g']
+const HOUSE_CATEGORIES = [
+  'Proteins',
+  'Produce',
+  'Dairy',
+  'Dry Goods',
+  'Beverages',
+  'Packaging',
+  'Cleaning',
+  'Other',
+]
+
+function normalizeName(raw: string): string {
+  return raw
+    .toLowerCase()
+    .replace(/[^a-z0-9 /-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function defaultUnitFor(unit: string): string {
+  if (unit === 'each') return 'EA'
+  if (unit === 'floz') return 'GAL'
+  return 'LB'
+}
 
 export async function POST(req: NextRequest) {
   const serviceKey = process.env.SUPABASE_SERVICE_KEY
@@ -93,21 +120,22 @@ export async function POST(req: NextRequest) {
     const pb = purchasedIds.has(b.id) ? 0 : 1
     return pa - pb || a.name.localeCompare(b.name)
   })
-  const validNames = new Set(canonical.map((c) => c.name))
   const vocab = sorted.map((c) => `- ${c.name} (usually bought per ${c.default_unit ?? 'EA'})`).join('\n')
 
   const system = [
     'You are an experienced restaurant chef and cost consultant.',
-    'You draft a standard single-serving recipe for a dish.',
-    'RULES:',
-    '- Use ONLY ingredients from the provided list, spelled exactly as given.',
+    'Draft the AUTHENTIC single-serving recipe for the dish — what a real kitchen would use, including accompaniments served on the plate (chutneys, sambar, fillings, garnishes).',
+    'Ingredient naming rules (important):',
+    '- lowercase, full words: "rice flour", "urad dal", "yellow onion", "salt".',
+    '- NO brand names (never a branded salt or flour — just "salt", "flour"), NO size or packaging words (no "jumbo", "bulk", "40-pack"), NO abbreviations.',
+    '- The user message lists ingredients this restaurant already buys. When one fits, use its exact name. When the dish genuinely needs an ingredient that is NOT listed, add it in the same clean format — never substitute a wrong ingredient just because it is listed.',
     '- Quantities are per ONE serving, in realistic restaurant portions.',
     '- unit must be one of: oz, lb, each, floz, g.',
-    '- Include 4 to 10 ingredients: proteins, produce, dairy, grains, spices, oils — whatever the dish genuinely needs from the list.',
-    '- If the list lacks an essential ingredient, do your best with what exists rather than inventing names.',
-    'Return ONLY a JSON object, no prose: {"lines":[{"ingredient_name":"...","quantity":number,"unit":"oz"}]}',
+    '- category must be one of: Proteins, Produce, Dairy, Dry Goods, Beverages, Packaging, Cleaning, Other.',
+    '- Include 4 to 12 ingredients.',
+    'Return ONLY a JSON object, no prose: {"lines":[{"ingredient_name":"...","quantity":number,"unit":"oz","category":"Produce"}]}',
   ].join('\n')
-  const userMsg = `Restaurant: ${rest?.name ?? 'a restaurant'}\nDish: ${dish}\n\nAvailable ingredients:\n${vocab}`
+  const userMsg = `Restaurant: ${rest?.name ?? 'a restaurant'}\nDish: ${dish}\n\nIngredients this restaurant already buys (prefer these exact names when they fit):\n${vocab}`
 
   let draft: { ingredient_name: string; quantity: number; unit: string }[] = []
   try {
@@ -135,24 +163,54 @@ export async function POST(req: NextRequest) {
     const end = text.lastIndexOf('}')
     if (start < 0 || end <= start) throw new Error('No JSON in draft response')
     const parsed = JSON.parse(text.slice(start, end + 1)) as {
-      lines?: { ingredient_name?: string; quantity?: number; unit?: string }[]
+      lines?: { ingredient_name?: string; quantity?: number; unit?: string; category?: string }[]
     }
-    draft = (parsed.lines ?? [])
-      .filter(
-        (l) =>
-          l.ingredient_name &&
-          validNames.has(l.ingredient_name) &&
-          typeof l.quantity === 'number' &&
-          l.quantity > 0 &&
-          l.quantity <= 10000 &&
-          l.unit &&
-          UNITS.includes(l.unit)
-      )
-      .map((l) => ({
-        ingredient_name: l.ingredient_name as string,
+    const rawLines = (parsed.lines ?? []).filter(
+      (l) =>
+        l.ingredient_name &&
+        typeof l.quantity === 'number' &&
+        l.quantity > 0 &&
+        l.quantity <= 10000 &&
+        l.unit &&
+        UNITS.includes(l.unit)
+    )
+
+    // Resolve each ingredient to the catalog, creating clean new
+    // canonical items for genuine essentials the catalog lacks.
+    const byName = new Map(canonical.map((c) => [c.name, c]))
+    const seen = new Set<string>()
+    for (const l of rawLines) {
+      const name = normalizeName(l.ingredient_name as string)
+      if (!name || seen.has(name)) continue
+      seen.add(name)
+      if (!byName.has(name)) {
+        const category =
+          l.category && HOUSE_CATEGORIES.includes(l.category) ? l.category : 'Other'
+        const { data: created } = await sb
+          .from('canonical_items')
+          .insert({ name, category, default_unit: defaultUnitFor(l.unit as string) })
+          .select('id, name, default_unit')
+          .single()
+        if (created) {
+          byName.set(name, created)
+        } else {
+          // Unique conflict (raced or pre-existing under another
+          // normalization) — re-read; drop the line if truly absent.
+          const { data: again } = await sb
+            .from('canonical_items')
+            .select('id, name, default_unit')
+            .eq('name', name)
+            .maybeSingle()
+          if (!again) continue
+          byName.set(name, again)
+        }
+      }
+      draft.push({
+        ingredient_name: name,
         quantity: l.quantity as number,
         unit: l.unit as string,
-      }))
+      })
+    }
   } catch (e) {
     return NextResponse.json(
       { error: `Could not draft a recipe: ${(e as Error).message}` },

@@ -9,10 +9,12 @@ import type { SupabaseClient } from '@supabase/supabase-js'
  * resolved to canonical items.
  *
  * Unit math mirrors sql/008's to_base_unit(): everything normalizes
- * to grams / ml / each, and a purchased line's quantity is
- * unit_qty × coalesce(case_qty, 1) expressed in the canonical
- * item's default_unit — the same formula usage_variance() uses, so
- * plate costs and the variance page can never disagree.
+ * to grams / ml / each, and a purchased line's quantity is its
+ * unit_qty expressed in the canonical item's default_unit — the
+ * same formula usage_variance() uses, so plate costs and the
+ * variance page can never disagree. (Case purchases store their
+ * count in case_qty with unit_qty = 0, so they don't price yet —
+ * that needs pack sizes on canonical_items.)
  */
 
 export interface DishSales {
@@ -176,7 +178,7 @@ export async function fetchIngredientCosts(
     const item = byId.get(l.canonical_item_id)
     if (!item || costs.has(item.name)) continue
     if (!l.total || l.total <= 0) continue
-    const qty = (l.unit_qty ?? 0) * (l.case_qty ?? 1)
+    const qty = l.unit_qty ?? 0
     if (qty <= 0) continue
     const base = toBase(qty, item.default_unit)
     if (!base || base.base <= 0) continue

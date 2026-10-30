@@ -6,8 +6,12 @@
 -- per-plate measurement:
 --
 --   THEORETICAL = SUM over pos_sales (dishes_sold x recipes_estimated.quantity per dish)
---   ACTUAL      = SUM over invoice_lines (unit_qty x case_qty) for lines already
---                 resolved to a canonical item (007), inside the invoice period
+--   ACTUAL      = SUM over invoice_lines (unit_qty) for lines already
+--                 resolved to a canonical item (007), inside the invoice period.
+--                 The app stores lb/each purchases in unit_qty; CASE purchases
+--                 store their count in case_qty with unit_qty = 0, so they
+--                 contribute 0 here until pack sizes live on canonical_items
+--                 (a documented undercount, mostly dairy)
 --   VARIANCE    = (actual - theoretical) / theoretical
 --
 -- The variance is the cost-cutting engine. If chili powder purchases run 3x
@@ -136,7 +140,7 @@ as $$
   actual as (
     select ci.name as ingredient,
            sum(to_base_unit(
-             l.unit_qty * coalesce(l.case_qty, 1),
+             l.unit_qty,
              coalesce(ci.default_unit, 'EA'),
              l.restaurant_id
            )) as qty
