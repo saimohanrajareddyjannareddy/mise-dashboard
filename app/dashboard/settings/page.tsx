@@ -302,6 +302,10 @@ export default function SettingsPage() {
           json.expand_used && json.expand_used !== 'lineItems,discounts,refunds,orderType,payments'
             ? ` Limited fields for this app: ${json.expand_used}`
             : ''
+        }${
+          json.fields_missing && json.fields_missing.length > 0
+            ? ` Clover returned no ${json.fields_missing.join(' or ')} data — the app's token can't read those fields. Grant Orders + Payments read in the Clover developer dashboard, then Reconnect above and sync again.`
+            : ''
         }`
       )
     } catch (e: any) {

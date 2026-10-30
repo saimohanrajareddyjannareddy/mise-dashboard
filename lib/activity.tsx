@@ -56,7 +56,7 @@ type ActivityContextValue = {
   startParse: (file: File) => string
   consumeParse: (id: string) => void
   startEmailScan: () => Promise<ScanResult>
-  startCloverSync: () => Promise<{ count: number; expand_used?: string }>
+  startCloverSync: () => Promise<{ count: number; expand_used?: string; fields_missing?: string[] }>
   dismiss: (id: string) => void
   clearFinished: () => void
 }
@@ -201,7 +201,7 @@ export function ActivityProvider({ children }: { children: React.ReactNode }) {
     }
   }, [add, update, restaurantId])
 
-  const startCloverSync = useCallback(async (): Promise<{ count: number; expand_used?: string }> => {
+  const startCloverSync = useCallback(async (): Promise<{ count: number; expand_used?: string; fields_missing?: string[] }> => {
     if (!restaurantId) throw new Error('No restaurant selected')
     const id = add({
       id: crypto.randomUUID(),
@@ -226,9 +226,13 @@ export function ActivityProvider({ children }: { children: React.ReactNode }) {
           json.expand_used && json.expand_used !== 'lineItems,discounts,refunds,orderType,payments'
             ? ` · limited fields: ${json.expand_used}`
             : ''
+        }${
+          json.fields_missing && json.fields_missing.length > 0
+            ? ` · Clover returned no ${json.fields_missing.join(' or ')} data`
+            : ''
         }`,
       })
-      return json as { count: number; expand_used?: string }
+      return json as { count: number; expand_used?: string; fields_missing?: string[] }
     } catch (e: any) {
       update(id, {
         status: 'error',

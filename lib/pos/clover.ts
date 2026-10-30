@@ -125,6 +125,13 @@ export interface CloverSalesAggregates {
   breakdowns: SalesBreakdownRow[]
   /** Which expansion set the API accepted (ladder winner). */
   expandUsed: string | null
+  /**
+   * Whether the returned orders actually CARRIED the breakdown
+   * fields. Clover can silently omit expansions a token isn't
+   * scoped for (200 OK, fields absent) — the ladder can't see
+   * that, but this check can.
+   */
+  fields: { orderType: boolean; payments: boolean }
 }
 
 interface RichPayment {
@@ -274,7 +281,12 @@ export async function fetchCloverSalesAggregates(
     }
   }
 
-  return { daily, breakdowns: [...byKey.values()], expandUsed }
+  const richOrders = orders as unknown as RichOrder[]
+  const fields = {
+    orderType: richOrders.some((o) => !!o.orderType?.label),
+    payments: richOrders.some((o) => (o.payments?.elements?.length ?? 0) > 0),
+  }
+  return { daily, breakdowns: [...byKey.values()], expandUsed, fields }
 }
 
 /** Back-compat wrapper: daily totals only. */

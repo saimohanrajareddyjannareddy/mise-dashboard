@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
       breakdown_rows: r.breakdownRows,
       breakdown_error: r.breakdownError,
       expand_used: r.expandUsed,
+      fields_missing: r.fieldsMissing,
     })
   } catch (e) {
     if (e instanceof CloverSyncError) {

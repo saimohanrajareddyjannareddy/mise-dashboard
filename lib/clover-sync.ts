@@ -31,6 +31,8 @@ export interface CloverSyncResult {
   breakdownError: string | null
   /** Which expansion set the Clover API accepted for aggregates. */
   expandUsed: string | null
+  /** Breakdown data Clover didn't return (e.g. 'channel', 'payment'). */
+  fieldsMissing: string[]
 }
 
 /**
@@ -108,7 +110,7 @@ export async function syncRestaurantClover(
   }
 
   if (rows.length === 0) {
-    return { count: 0, dailyDays: 0, breakdownRows: 0, breakdownError: null, expandUsed: null }
+    return { count: 0, dailyDays: 0, breakdownRows: 0, breakdownError: null, expandUsed: null, fieldsMissing: [] }
   }
 
   // pos_sales has a unique INDEX with coalesce(...) expressions that
@@ -140,6 +142,7 @@ export async function syncRestaurantClover(
   let dailyDays = 0
   let breakdownRows = 0
   let expandUsed: string | null = null
+  let fieldsMissing: string[] = []
   let breakdownError: string | null = null
   try {
     const aggregates = await fetchCloverSalesAggregates(creds, sinceTs)
@@ -194,6 +197,10 @@ export async function syncRestaurantClover(
       }
       breakdownRows = aggregates.breakdowns.length
       expandUsed = aggregates.expandUsed
+      fieldsMissing = [
+        ...(aggregates.fields.orderType ? [] : ['channel']),
+        ...(aggregates.fields.payments ? [] : ['payment']),
+      ]
     } catch (e) {
       breakdownError = (e as Error).message
     }
@@ -205,5 +212,5 @@ export async function syncRestaurantClover(
     )
   }
 
-  return { count: rows.length, dailyDays, breakdownRows, breakdownError, expandUsed }
+  return { count: rows.length, dailyDays, breakdownRows, breakdownError, expandUsed, fieldsMissing }
 }
