@@ -262,8 +262,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* CONTENT */}
       <div className="ml-0 flex min-w-0 flex-1 flex-col md:ml-60">
         {/* Top bar */}
-        <header className="sticky top-0 z-[5] flex items-center justify-between gap-2 border-b border-ink/[0.08] bg-cream/95 px-3 py-3 backdrop-blur sm:gap-3 md:gap-4 md:px-8 md:py-4">
-          <div className="flex min-w-0 items-center gap-3">
+        <header className="sticky top-0 z-[5] flex flex-col gap-2.5 border-b border-ink/[0.08] bg-cream/95 px-3 py-3 backdrop-blur md:flex-row md:items-center md:justify-between md:gap-4 md:px-8 md:py-4">
+          {/* Actions row — first on mobile, so the greeting below gets
+              a full-width row of its own and names never truncate. */}
+          <div className="order-1 flex items-center justify-between gap-2 md:order-2 md:justify-end">
             {/* Hamburger — mobile only; toggles the sidebar drawer. */}
             <button
               type="button"
@@ -274,12 +276,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             >
               <Menu size={18} />
             </button>
-            <div className="min-w-0">
-              <h1 className="truncate font-display text-[21px] font-extrabold leading-none tracking-[-0.5px] text-ink md:text-[28px]">{greeting}</h1>
-              {current && <p className="mt-1.5 truncate text-[13px] text-ink-muted">{current.name}</p>}
-            </div>
-          </div>
-          <div className="flex flex-shrink-0 items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
             <button
               type="button"
               aria-label="Search"
@@ -317,6 +314,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </Link>
             {/* Preserves the existing create-restaurant wiring (its own styling). */}
             <AddRestaurantButton />
+            </div>
+          </div>
+          {/* Greeting row — full width on mobile. */}
+          <div className="order-2 min-w-0 md:order-1">
+            <h1 className="truncate font-display text-[21px] font-extrabold leading-none tracking-[-0.5px] text-ink md:text-[28px]">{greeting}</h1>
+            {current && <p className="mt-1 truncate text-[13px] text-ink-muted">{current.name}</p>}
           </div>
         </header>
 
