@@ -35,7 +35,9 @@
 -- (opening + purchases - closing) math works.
 --
 -- Depends on: 001 (recipes_estimated, pos_sales, invoice_lines,
--- invoice_headers), 007 (canonical_items, ingredient_aliases).
+-- invoice_headers), 007 (canonical_items, ingredient_aliases),
+-- 018 (recipe_meta — run 018 BEFORE this file; the function below
+-- reads it to expand component recipes).
 -- Apply in the Supabase SQL editor. Idempotent (re-runnable).
 
 -- ── unit_conversions: purchased/packed units -> comparable base ──
@@ -106,6 +108,13 @@ comment on function public.to_base_unit(numeric, text, uuid) is
 --  * pos_sales.item_name -> recipes_estimated.menu_item_name is an exact
 --    match today; if POS names drift, normalize here (same aliasing idea as
 --    ingredient_aliases in 007).
+--  * COMPONENT EXPANSION: a dish line whose ingredient is a component
+--    (recipe_meta, sql/018 — sambar, coconut chutney) is expanded into
+--    the component's own ingredients, scaled by (line qty / batch
+--    yield), when both are expressed in the same base kind (g/ml/each).
+--    One level deep: a component inside a component surfaces as its
+--    own row until it is itself expanded by hand. Kind-mismatched
+--    component lines stay unexpanded (their own row).
 --  * actual uses canonical_item_id only: unresolved lines (NULL) are
 --    invisible here by design -- review the unreviewed queue first or the
 --    variance is under-counted.
@@ -126,16 +135,61 @@ returns table (
 language sql
 stable
 as $$
-  with theoretical as (
-    select r.ingredient_name as ingredient,
-           sum(s.quantity * to_base_unit(r.quantity, r.unit, s.restaurant_id)) as qty
+  with dish_lines as (
+    select r.ingredient_name,
+           r.quantity,
+           r.unit,
+           s.quantity as sold_qty,
+           s.restaurant_id
     from public.pos_sales s
     join public.recipes_estimated r
       on  r.restaurant_id  = s.restaurant_id
       and r.menu_item_name = s.item_name
     where s.restaurant_id = p_restaurant_id
       and s.sale_date between p_start and p_end
-    group by r.ingredient_name
+  ),
+  direct as (
+    select d.ingredient_name as ingredient,
+           sum(d.sold_qty * to_base_unit(d.quantity, d.unit, d.restaurant_id)) as qty
+    from dish_lines d
+    where not exists (
+      select 1 from public.recipe_meta m
+      where m.restaurant_id = d.restaurant_id
+        and m.recipe_name = d.ingredient_name
+        and m.kind = 'component'
+        and (select c.base_unit from public.unit_conversions c
+              where c.from_unit = d.unit and c.restaurant_id is null limit 1)
+          = (select c.base_unit from public.unit_conversions c
+              where c.from_unit = m.yield_unit and c.restaurant_id is null limit 1)
+    )
+    group by d.ingredient_name
+  ),
+  expanded as (
+    select cl.ingredient_name as ingredient,
+           sum(
+             d.sold_qty
+             * to_base_unit(d.quantity, d.unit, d.restaurant_id)
+             * to_base_unit(cl.quantity, cl.unit, d.restaurant_id)
+             / nullif(to_base_unit(m.yield_qty, m.yield_unit, d.restaurant_id), 0)
+           ) as qty
+    from dish_lines d
+    join public.recipe_meta m
+      on  m.restaurant_id = d.restaurant_id
+      and m.recipe_name = d.ingredient_name
+      and m.kind = 'component'
+    join public.recipes_estimated cl
+      on  cl.restaurant_id = d.restaurant_id
+      and cl.menu_item_name = d.ingredient_name
+    where (select c.base_unit from public.unit_conversions c
+            where c.from_unit = d.unit and c.restaurant_id is null limit 1)
+        = (select c.base_unit from public.unit_conversions c
+            where c.from_unit = m.yield_unit and c.restaurant_id is null limit 1)
+    group by cl.ingredient_name
+  ),
+  theoretical as (
+    select ingredient, sum(qty) as qty
+    from (select * from direct union all select * from expanded) u
+    group by ingredient
   ),
   actual as (
     select ci.name as ingredient,

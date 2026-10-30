@@ -53,9 +53,14 @@ export async function POST(req: NextRequest) {
   const token = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '')
   if (!token) return NextResponse.json({ error: 'Sign in required' }, { status: 401 })
 
-  const body = (await req.json()) as { restaurant_id?: string; menu_item_name?: string }
+  const body = (await req.json()) as {
+    restaurant_id?: string
+    menu_item_name?: string
+    component?: boolean
+  }
   const restaurantId = body.restaurant_id
   const dish = (body.menu_item_name || '').trim()
+  const isComponent = body.component === true
   if (!restaurantId || !dish) {
     return NextResponse.json({ error: 'restaurant_id and menu_item_name required' }, { status: 400 })
   }
@@ -122,22 +127,41 @@ export async function POST(req: NextRequest) {
   })
   const vocab = sorted.map((c) => `- ${c.name} (usually bought per ${c.default_unit ?? 'EA'})`).join('\n')
 
-  const system = [
-    'You are an experienced restaurant chef and cost consultant.',
-    'Draft the AUTHENTIC single-serving recipe for the dish — what a real kitchen would use, including accompaniments served on the plate (chutneys, sambar, fillings, garnishes).',
-    'Ingredient naming rules (important):',
-    '- lowercase, full words: "rice flour", "urad dal", "yellow onion", "salt".',
-    '- NO brand names (never a branded salt or flour — just "salt", "flour"), NO size or packaging words (no "jumbo", "bulk", "40-pack"), NO abbreviations.',
-    '- The user message lists ingredients this restaurant already buys. When one fits, use its exact name. When the dish genuinely needs an ingredient that is NOT listed, add it in the same clean format — never substitute a wrong ingredient just because it is listed.',
-    '- Quantities are per ONE serving, in realistic restaurant portions.',
-    '- unit must be one of: oz, lb, each, floz, g.',
-    '- category must be one of: Proteins, Produce, Dairy, Dry Goods, Beverages, Packaging, Cleaning, Other.',
-    '- Include 4 to 12 ingredients.',
-    'Return ONLY a JSON object, no prose: {"lines":[{"ingredient_name":"...","quantity":number,"unit":"oz","category":"Produce"}]}',
-  ].join('\n')
-  const userMsg = `Restaurant: ${rest?.name ?? 'a restaurant'}\nDish: ${dish}\n\nIngredients this restaurant already buys (prefer these exact names when they fit):\n${vocab}`
+  const system = isComponent
+    ? [
+        'You are an experienced restaurant chef and cost consultant.',
+        `Draft the standard BATCH recipe for a preparation ("${dish}") as a restaurant kitchen makes it — one normal prep batch, not a single serving.`,
+        'Ingredient naming rules (important):',
+        '- lowercase, full words: "toor dal", "tamarind", "coconut", "mustard seeds".',
+        '- NO brand names, NO size or packaging words (no "jumbo", "bulk"), NO abbreviations.',
+        '- The user message lists ingredients this restaurant already buys. When one fits, use its exact name. When the preparation genuinely needs an ingredient that is NOT listed, add it in the same clean format — never substitute a wrong ingredient just because it is listed.',
+        '- Quantities are for the WHOLE batch, in realistic prep quantities.',
+        '- unit must be one of: oz, lb, each, floz, g.',
+        '- category must be one of: Proteins, Produce, Dairy, Dry Goods, Beverages, Packaging, Cleaning, Other.',
+        '- Also return the batch yield: how much finished preparation the batch makes. For sauces, chutneys, gravies and batters express yield_qty in oz (weight) with yield_unit "oz".',
+        '- Include 4 to 12 ingredients.',
+        'Return ONLY a JSON object, no prose: {"yield_qty":number,"yield_unit":"oz","lines":[{"ingredient_name":"...","quantity":number,"unit":"oz","category":"Produce"}]}',
+      ].join('\n')
+    : [
+        'You are an experienced restaurant chef and cost consultant.',
+        'Draft the AUTHENTIC single-serving recipe for the dish — what a real kitchen would use, including accompaniments served on the plate (chutneys, sambar, fillings, garnishes).',
+        'Ingredient naming rules (important):',
+        '- lowercase, full words: "rice flour", "urad dal", "yellow onion", "salt".',
+        '- NO brand names (never a branded salt or flour — just "salt", "flour"), NO size or packaging words (no "jumbo", "bulk", "40-pack"), NO abbreviations.',
+        '- The user message lists ingredients this restaurant already buys. When one fits, use its exact name. When the dish genuinely needs an ingredient that is NOT listed, add it in the same clean format — never substitute a wrong ingredient just because it is listed.',
+        '- Quantities are per ONE serving, in realistic restaurant portions.',
+        '- unit must be one of: oz, lb, each, floz, g.',
+        '- category must be one of: Proteins, Produce, Dairy, Dry Goods, Beverages, Packaging, Cleaning, Other.',
+        '- Include 4 to 12 ingredients.',
+        'Return ONLY a JSON object, no prose: {"lines":[{"ingredient_name":"...","quantity":number,"unit":"oz","category":"Produce"}]}',
+      ].join('\n')
+  const userMsg = isComponent
+    ? `Restaurant: ${rest?.name ?? 'a restaurant'}\nPreparation (one batch): ${dish}\n\nIngredients this restaurant already buys (prefer these exact names when they fit):\n${vocab}`
+    : `Restaurant: ${rest?.name ?? 'a restaurant'}\nDish: ${dish}\n\nIngredients this restaurant already buys (prefer these exact names when they fit):\n${vocab}`
 
   let draft: { ingredient_name: string; quantity: number; unit: string }[] = []
+  let yieldQty: number | null = null
+  let yieldUnit: string | null = null
   try {
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -163,7 +187,18 @@ export async function POST(req: NextRequest) {
     const end = text.lastIndexOf('}')
     if (start < 0 || end <= start) throw new Error('No JSON in draft response')
     const parsed = JSON.parse(text.slice(start, end + 1)) as {
+      yield_qty?: number
+      yield_unit?: string
       lines?: { ingredient_name?: string; quantity?: number; unit?: string; category?: string }[]
+    }
+    if (
+      typeof parsed.yield_qty === 'number' &&
+      parsed.yield_qty > 0 &&
+      parsed.yield_unit &&
+      UNITS.includes(parsed.yield_unit)
+    ) {
+      yieldQty = parsed.yield_qty
+      yieldUnit = parsed.yield_unit
     }
     const rawLines = (parsed.lines ?? []).filter(
       (l) =>
@@ -244,5 +279,33 @@ export async function POST(req: NextRequest) {
   )
   if (insErr) return NextResponse.json({ error: insErr.message }, { status: 500 })
 
-  return NextResponse.json({ lines: draft })
+  // Components also record their batch yield (sql/018). The upsert
+  // needs the table to exist; if it doesn't, the lines still saved —
+  // surface it as a soft warning in the response.
+  let metaError: string | null = null
+  if (isComponent) {
+    if (yieldQty != null && yieldUnit) {
+      const { error: metaErr } = await sb.from('recipe_meta').upsert(
+        {
+          restaurant_id: restaurantId,
+          recipe_name: dish,
+          kind: 'component',
+          yield_qty: yieldQty,
+          yield_unit: yieldUnit,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'restaurant_id,recipe_name' }
+      )
+      if (metaErr) metaError = metaErr.message
+    } else {
+      metaError = 'The draft did not include a batch yield.'
+    }
+  }
+
+  return NextResponse.json({
+    lines: draft,
+    yield_qty: yieldQty,
+    yield_unit: yieldUnit,
+    meta_error: metaError,
+  })
 }

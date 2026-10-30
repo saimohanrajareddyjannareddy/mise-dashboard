@@ -187,6 +187,104 @@ export async function fetchIngredientCosts(
   return costs
 }
 
+export interface RecipeMeta {
+  kind: 'component'
+  yieldQty: number
+  yieldUnit: string
+}
+
+/**
+ * Component (sub-recipe) definitions from recipe_meta (sql/018).
+ * Returns an empty map when the table doesn't exist yet — costing
+ * then simply treats component names as unpriced ingredients.
+ */
+export async function fetchRecipeMeta(
+  sb: SupabaseClient,
+  restaurantId: string
+): Promise<Map<string, RecipeMeta>> {
+  const map = new Map<string, RecipeMeta>()
+  const { data, error } = await sb
+    .from('recipe_meta')
+    .select('recipe_name, yield_qty, yield_unit')
+    .eq('restaurant_id', restaurantId)
+  if (error) return map
+  for (const r of (data ?? []) as { recipe_name: string; yield_qty: number; yield_unit: string }[]) {
+    map.set(r.recipe_name, {
+      kind: 'component',
+      yieldQty: Number(r.yield_qty),
+      yieldUnit: r.yield_unit,
+    })
+  }
+  return map
+}
+
+/**
+ * Fill component prices into the cost map: a component's cost per
+ * base unit = its batch cost (its own recipe lines, costed the same
+ * way, recursively up to depth 3) ÷ its batch yield. A component
+ * with any unpriced ingredient stays unpriced — an honest gap beats
+ * an understated cost. Purchase prices always win over component
+ * prices for the same name.
+ */
+export function mergeComponentCosts(
+  recipes: Map<string, RecipeLine[]>,
+  meta: Map<string, RecipeMeta>,
+  purchaseCosts: Map<string, IngredientCost>
+): Map<string, IngredientCost> {
+  const merged = new Map(purchaseCosts)
+  const memo = new Map<string, IngredientCost | null>()
+
+  function componentCost(
+    name: string,
+    depth: number,
+    visiting: Set<string>
+  ): IngredientCost | null {
+    if (memo.has(name)) return memo.get(name) ?? null
+    if (depth > 3 || visiting.has(name)) return null
+    const m = meta.get(name)
+    const lines = recipes.get(name)
+    if (!m || !lines || lines.length === 0) return null
+    visiting.add(name)
+    let total = 0
+    for (const line of lines) {
+      const base = toBase(line.quantity, line.unit)
+      if (!base) {
+        visiting.delete(name)
+        memo.set(name, null)
+        return null
+      }
+      const direct = purchaseCosts.get(line.ingredient_name)
+      if (direct?.costPerBase != null && direct.baseKind === base.kind) {
+        total += base.base * direct.costPerBase
+        continue
+      }
+      const sub = componentCost(line.ingredient_name, depth + 1, visiting)
+      if (!sub || sub.costPerBase == null || sub.baseKind !== base.kind) {
+        visiting.delete(name)
+        memo.set(name, null)
+        return null
+      }
+      total += base.base * sub.costPerBase
+    }
+    visiting.delete(name)
+    const yb = toBase(m.yieldQty, m.yieldUnit)
+    if (!yb || yb.base <= 0) {
+      memo.set(name, null)
+      return null
+    }
+    const out: IngredientCost = { costPerBase: total / yb.base, baseKind: yb.kind }
+    memo.set(name, out)
+    return out
+  }
+
+  for (const name of meta.keys()) {
+    if (merged.has(name)) continue
+    const c = componentCost(name, 0, new Set())
+    if (c) merged.set(name, c)
+  }
+  return merged
+}
+
 /** Plate cost for one recipe; lists ingredients that couldn't be priced. */
 export function plateCost(
   lines: RecipeLine[],

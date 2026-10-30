@@ -7,9 +7,11 @@ import {
   fetchCanonicalItems,
   fetchDishSales,
   fetchIngredientCosts,
+  fetchRecipeMeta,
   fetchRecipes,
   fetchUsageVariance,
   formatBaseQty,
+  mergeComponentCosts,
   plateCost,
   recipeStatus,
   toBase,
@@ -19,6 +21,7 @@ import {
   type DishSales,
   type IngredientCost,
   type RecipeLine,
+  type RecipeMeta,
   type VarianceRow,
 } from '@/lib/recipes'
 
@@ -54,19 +57,33 @@ export default function RecipesPage() {
   const [variance, setVariance] = useState<VarianceRow[]>([])
   const [varianceError, setVarianceError] = useState<string | null>(null)
 
+  const [meta, setMeta] = useState<Map<string, RecipeMeta>>(new Map())
+  const [metaMissing, setMetaMissing] = useState(false)
+  const [editingComp, setEditingComp] = useState<string | null>(null)
+  const [compLines, setCompLines] = useState<EditLine[]>([])
+  const [compYieldQty, setCompYieldQty] = useState('128')
+  const [compYieldUnit, setCompYieldUnit] = useState('oz')
+  const [newCompName, setNewCompName] = useState('')
+  const [draftingComp, setDraftingComp] = useState<string | null>(null)
+
   const load = useCallback(async () => {
     if (!restaurantId) return
     setLoading(true)
     const canon = await fetchCanonicalItems(supabase)
-    const [dishList, recipeMap, costMap] = await Promise.all([
+    const [dishList, recipeMap, purchaseMap, metaMap] = await Promise.all([
       fetchDishSales(supabase, restaurantId, 30),
       fetchRecipes(supabase, restaurantId),
       fetchIngredientCosts(supabase, restaurantId, canon),
+      fetchRecipeMeta(supabase, restaurantId),
     ])
+    const { error: metaProbeErr } = await supabase.from('recipe_meta').select('id').limit(1)
+    setMetaMissing(!!metaProbeErr)
+    setMeta(metaMap)
     setCanonical(canon)
     setDishes(dishList)
     setRecipes(recipeMap)
-    setCosts(costMap)
+    // Purchase prices first; component (batch) prices fill the rest.
+    setCosts(mergeComponentCosts(recipeMap, metaMap, purchaseMap))
 
     // Theoretical-vs-actual for the selected period.
     const fmt = (d: Date) =>
@@ -196,6 +213,151 @@ export default function RecipesPage() {
     }
   }
 
+  function openCompEditor(name: string) {
+    const lines = recipes.get(name) ?? []
+    const m = meta.get(name)
+    setCompLines(
+      lines.length > 0
+        ? lines.map((l) => ({
+            ingredient_name: l.ingredient_name,
+            quantity: String(l.quantity),
+            unit: l.unit,
+          }))
+        : [{ ingredient_name: canonical[0]?.name ?? '', quantity: '1', unit: 'oz' }]
+    )
+    setCompYieldQty(m ? String(m.yieldQty) : '128')
+    setCompYieldUnit(m ? m.yieldUnit : 'oz')
+    setEditingComp(name)
+    setNotice(null)
+  }
+
+  async function draftComponent(name: string) {
+    if (!restaurantId || !name.trim()) return
+    setDraftingComp(name)
+    setNotice(null)
+    try {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData.session?.access_token
+      if (!token) throw new Error('Sign in required')
+      const resp = await fetch('/api/recipes/draft', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ restaurant_id: restaurantId, menu_item_name: name.trim(), component: true }),
+      })
+      const json = await resp.json()
+      if (!resp.ok) throw new Error(json.error || 'Draft failed')
+      if (json.meta_error) {
+        setNotice(
+          `Draft saved, but the batch yield couldn't be recorded (${json.meta_error}). Run sql/018_recipe_meta.sql in the Supabase SQL editor, then save the component again.`
+        )
+      } else {
+        setNotice(`AI drafted the batch recipe for ${name.trim()} — review it below and Save to confirm.`)
+      }
+      await load()
+      const fresh = await fetchRecipes(supabase, restaurantId)
+      const lines = fresh.get(name.trim()) ?? []
+      setCompLines(
+        lines.map((l) => ({
+          ingredient_name: l.ingredient_name,
+          quantity: String(l.quantity),
+          unit: l.unit,
+        }))
+      )
+      if (json.yield_qty) setCompYieldQty(String(json.yield_qty))
+      if (json.yield_unit) setCompYieldUnit(json.yield_unit)
+      setEditingComp(name.trim())
+    } catch (e) {
+      setNotice((e as Error).message)
+    } finally {
+      setDraftingComp(null)
+    }
+  }
+
+  async function saveComponent(name: string) {
+    if (!restaurantId) return
+    setSaving(true)
+    setNotice(null)
+    try {
+      const merged = new Map<string, RecipeLine>()
+      for (const row of compLines) {
+        const qty = Number(row.quantity)
+        if (!row.ingredient_name || !qty || qty <= 0) continue
+        const key = `${row.ingredient_name}|${row.unit}`
+        const cur = merged.get(key)
+        if (cur) cur.quantity += qty
+        else
+          merged.set(key, {
+            ingredient_name: row.ingredient_name,
+            quantity: qty,
+            unit: row.unit,
+            confidence: 'user_confirmed',
+          })
+      }
+      const lines = [...merged.values()]
+      if (lines.length === 0) throw new Error('Add at least one ingredient with a quantity.')
+      const yieldQty = Number(compYieldQty)
+      if (!yieldQty || yieldQty <= 0) throw new Error('Set the batch yield (how much one batch makes).')
+
+      const { error: delErr } = await supabase
+        .from('recipes_estimated')
+        .delete()
+        .eq('restaurant_id', restaurantId)
+        .eq('menu_item_name', name)
+      if (delErr) throw new Error(delErr.message)
+      const { error: insErr } = await supabase.from('recipes_estimated').insert(
+        lines.map((l) => ({
+          restaurant_id: restaurantId,
+          menu_item_name: name,
+          ingredient_name: l.ingredient_name,
+          quantity: l.quantity,
+          unit: l.unit,
+          confidence: 'user_confirmed',
+          source: 'user',
+        }))
+      )
+      if (insErr) throw new Error(insErr.message)
+      const { error: metaErr } = await supabase.from('recipe_meta').upsert(
+        {
+          restaurant_id: restaurantId,
+          recipe_name: name,
+          kind: 'component',
+          yield_qty: yieldQty,
+          yield_unit: compYieldUnit,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'restaurant_id,recipe_name' }
+      )
+      if (metaErr) {
+        throw new Error(
+          `Recipe lines saved, but the batch yield wasn't: ${metaErr.message} — if this mentions recipe_meta, run sql/018_recipe_meta.sql in the Supabase SQL editor.`
+        )
+      }
+      setEditingComp(null)
+      setNotice(`Component ${name} confirmed — dishes using it now price through its batch cost.`)
+      await load()
+    } catch (e) {
+      setNotice((e as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Live cost of the component being edited.
+  const compEditCost =
+    editingComp != null
+      ? plateCost(
+          compLines
+            .map((l) => ({
+              ingredient_name: l.ingredient_name,
+              quantity: Number(l.quantity) || 0,
+              unit: l.unit,
+              confidence: 'user_confirmed',
+            }))
+            .filter((l) => l.quantity > 0 && l.ingredient_name),
+          costs
+        )
+      : null
+
   // Live cost of the recipe being edited.
   const editCost =
     editing != null
@@ -214,6 +376,22 @@ export default function RecipesPage() {
 
   // Variance section data.
   const canonByName = new Map(canonical.map((c) => [c.name, c]))
+
+  // Ingredients referenced by recipes that have no price and no
+  // recipe of their own — prime component candidates (sambar,
+  // coconut chutney, house sauces…).
+  const undefinedRefs = (() => {
+    const seen = new Set<string>()
+    for (const lines of recipes.values()) {
+      for (const l of lines) {
+        if (!costs.has(l.ingredient_name) && !recipes.has(l.ingredient_name)) {
+          seen.add(l.ingredient_name)
+        }
+      }
+    }
+    return [...seen].sort()
+  })()
+  const definedComponents = [...meta.keys()].sort()
   const varianceMain = variance.filter((v) => v.variancePct != null)
   const varianceNoRecipe = variance.filter((v) => v.variancePct == null && v.actualBase > 0)
   const impactOf = (v: VarianceRow): number | null => {
@@ -459,6 +637,249 @@ export default function RecipesPage() {
           appeared on a recent invoice, or the invoice line couldn't be matched to the
           ingredient catalog). Costs refresh from your newest invoices automatically.
         </p>
+      )}
+
+      {/* COMPONENTS (SUB-RECIPES) */}
+      {!loading && dishes.length > 0 && (
+        <div className={`${card} mt-6`}>
+          <h2 className="font-serif text-[22px] text-ink">Components — prep recipes</h2>
+          <p className="mt-1 max-w-2xl text-[13px] text-ink-muted">
+            Sambar, chutneys, sauces and batters aren't ingredients — they're recipes of their
+            own, made in batches and used by the ounce across many dishes. Define a component
+            once and every dish that uses it prices through its batch cost (batch cost ÷ yield
+            = cost per oz).
+          </p>
+
+          {metaMissing && (
+            <div className="mt-4 rounded-[10px] border border-terracotta/30 bg-terracotta/[0.08] px-4 py-3 text-[13px] text-ink">
+              <span className="font-semibold text-terracotta">One setup step:</span> run{' '}
+              <span className="font-mono">sql/018_recipe_meta.sql</span> in the Supabase SQL
+              editor so components can record their batch yield. (Run it before sql/008.)
+            </div>
+          )}
+
+          {undefinedRefs.length > 0 && (
+            <div className="mt-4">
+              <div className="text-[12.5px] font-semibold tracking-[0.02em] text-ink-muted">
+                Used in your dishes, but not defined yet
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {undefinedRefs.map((name) => (
+                  <span
+                    key={name}
+                    className="inline-flex items-center gap-2 rounded-full border border-ink/15 px-3 py-1.5 text-[13px] text-ink"
+                  >
+                    {name}
+                    <button
+                      onClick={() => draftComponent(name)}
+                      disabled={draftingComp != null}
+                      className="font-semibold text-terracotta hover:underline disabled:opacity-50"
+                    >
+                      {draftingComp === name ? 'Drafting…' : 'Define with AI'}
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {definedComponents.length > 0 && (
+            <div className="mt-5 space-y-2">
+              {definedComponents.map((name) => {
+                const m = meta.get(name)!
+                const lines = recipes.get(name) ?? []
+                const batch = plateCost(lines, costs)
+                const perUnit = costs.get(name)
+                const perOz =
+                  perUnit?.costPerBase != null
+                    ? perUnit.baseKind === 'g'
+                      ? perUnit.costPerBase * 28.3495
+                      : perUnit.baseKind === 'ml'
+                        ? perUnit.costPerBase * 29.5735
+                        : perUnit.costPerBase
+                    : null
+                const status = recipeStatus(lines)
+                const isEditing = editingComp === name
+                return (
+                  <div key={name} className="rounded-[10px] border border-ink/[0.08] px-4 py-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-[14px] font-medium text-ink">
+                        {name}
+                        <span
+                          className={`ml-2 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                            status === 'confirmed'
+                              ? 'bg-forest/10 text-forest'
+                              : 'bg-terracotta/10 text-terracotta'
+                          }`}
+                        >
+                          {status === 'confirmed' ? 'Confirmed' : 'AI draft'}
+                        </span>
+                      </span>
+                      <span className="font-mono text-[12.5px] text-ink-muted">
+                        makes {m.yieldQty} {m.yieldUnit} · batch{' '}
+                        {batch.missing.length > 0
+                          ? `${money(batch.total)}+`
+                          : money(batch.total)}
+                        {perOz != null &&
+                          ` · ${money(perOz)} / ${perUnit?.baseKind === 'each' ? 'each' : 'oz'}`}
+                      </span>
+                      <button
+                        onClick={() => (isEditing ? setEditingComp(null) : openCompEditor(name))}
+                        className="rounded-[8px] border border-ink/15 px-3 py-1.5 text-[12.5px] font-semibold text-ink hover:bg-ink/[0.04]"
+                      >
+                        {isEditing ? 'Close' : 'Edit'}
+                      </button>
+                    </div>
+
+                    {isEditing && (
+                      <div className="mt-4 border-t border-ink/[0.06] pt-4">
+                        <div className="mb-3 flex flex-wrap items-center gap-2 text-[13px] text-ink">
+                          <span className="font-semibold">One batch makes</span>
+                          <input
+                            value={compYieldQty}
+                            onChange={(e) => setCompYieldQty(e.target.value)}
+                            inputMode="decimal"
+                            className="w-20 rounded-[8px] border border-ink/15 bg-white px-2 py-1.5 font-mono text-[13px] text-ink"
+                          />
+                          <select
+                            value={compYieldUnit}
+                            onChange={(e) => setCompYieldUnit(e.target.value)}
+                            className="w-20 rounded-[8px] border border-ink/15 bg-white px-2 py-1.5 text-[13px] text-ink"
+                          >
+                            {RECIPE_UNITS.map((u) => (
+                              <option key={u} value={u}>
+                                {u}
+                              </option>
+                            ))}
+                          </select>
+                          {compEditCost && (
+                            <span className="ml-2 font-mono text-[12.5px] text-ink-muted">
+                              Batch cost: {money(compEditCost.total)}
+                              {compEditCost.missing.length > 0 &&
+                                ` (no price yet for: ${compEditCost.missing.join(', ')})`}
+                            </span>
+                          )}
+                        </div>
+                        <div className="space-y-2">
+                          {compLines.map((row, i) => {
+                            const base = toBase(Number(row.quantity) || 0, row.unit)
+                            const c = costs.get(row.ingredient_name)
+                            const lineCost =
+                              base && c?.costPerBase != null && c.baseKind === base.kind
+                                ? base.base * c.costPerBase
+                                : null
+                            return (
+                              <div key={i} className="flex flex-wrap items-center gap-2">
+                                <select
+                                  value={row.ingredient_name}
+                                  onChange={(e) => {
+                                    const next = [...compLines]
+                                    next[i] = { ...next[i], ingredient_name: e.target.value }
+                                    setCompLines(next)
+                                  }}
+                                  className="min-w-[220px] flex-1 rounded-[8px] border border-ink/15 bg-white px-2 py-1.5 text-[13px] text-ink"
+                                >
+                                  {canonical.map((c) => (
+                                    <option key={c.id} value={c.name}>
+                                      {c.name}
+                                    </option>
+                                  ))}
+                                </select>
+                                <input
+                                  value={row.quantity}
+                                  onChange={(e) => {
+                                    const next = [...compLines]
+                                    next[i] = { ...next[i], quantity: e.target.value }
+                                    setCompLines(next)
+                                  }}
+                                  inputMode="decimal"
+                                  className="w-20 rounded-[8px] border border-ink/15 bg-white px-2 py-1.5 font-mono text-[13px] text-ink"
+                                />
+                                <select
+                                  value={row.unit}
+                                  onChange={(e) => {
+                                    const next = [...compLines]
+                                    next[i] = { ...next[i], unit: e.target.value }
+                                    setCompLines(next)
+                                  }}
+                                  className="w-20 rounded-[8px] border border-ink/15 bg-white px-2 py-1.5 text-[13px] text-ink"
+                                >
+                                  {RECIPE_UNITS.map((u) => (
+                                    <option key={u} value={u}>
+                                      {u}
+                                    </option>
+                                  ))}
+                                </select>
+                                <span className="w-20 text-right font-mono text-[12.5px] text-ink-muted">
+                                  {lineCost != null ? money(lineCost) : '—'}
+                                </span>
+                                <button
+                                  onClick={() => setCompLines(compLines.filter((_, j) => j !== i))}
+                                  className="px-1 text-[15px] text-ink-muted hover:text-terracotta"
+                                  aria-label="Remove ingredient"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            )
+                          })}
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <button
+                            onClick={() =>
+                              setCompLines([
+                                ...compLines,
+                                { ingredient_name: canonical[0]?.name ?? '', quantity: '1', unit: 'oz' },
+                              ])
+                            }
+                            className="rounded-[8px] border border-ink/15 px-3 py-1.5 text-[12.5px] font-semibold text-ink hover:bg-ink/[0.04]"
+                          >
+                            + Add ingredient
+                          </button>
+                          <button
+                            onClick={() => saveComponent(name)}
+                            disabled={saving}
+                            className="rounded-[8px] bg-forest px-3 py-1.5 text-[12.5px] font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                          >
+                            {saving ? 'Saving…' : 'Save & confirm component'}
+                          </button>
+                          <button
+                            onClick={() => draftComponent(name)}
+                            disabled={draftingComp != null}
+                            className="rounded-[8px] border border-terracotta/40 px-3 py-1.5 text-[12.5px] font-semibold text-terracotta hover:bg-terracotta/[0.06] disabled:opacity-50"
+                          >
+                            {draftingComp === name ? 'Drafting…' : 'Draft with AI instead'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          <div className="mt-5 flex flex-wrap items-center gap-2">
+            <input
+              value={newCompName}
+              onChange={(e) => setNewCompName(e.target.value)}
+              placeholder="New component — e.g. garlic naan dough"
+              className="min-w-[240px] flex-1 rounded-[8px] border border-ink/15 bg-white px-3 py-2 text-[13px] text-ink"
+            />
+            <button
+              onClick={() => {
+                if (newCompName.trim()) {
+                  draftComponent(newCompName.trim().toLowerCase())
+                  setNewCompName('')
+                }
+              }}
+              disabled={draftingComp != null || !newCompName.trim()}
+              className="rounded-[8px] bg-terracotta px-3 py-2 text-[12.5px] font-semibold text-white hover:bg-terracotta-hover disabled:opacity-50"
+            >
+              {draftingComp ? 'Drafting…' : 'Draft with AI'}
+            </button>
+          </div>
+        </div>
       )}
 
       {/* THEORETICAL VS ACTUAL */}
