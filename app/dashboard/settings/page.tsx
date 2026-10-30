@@ -185,8 +185,9 @@ export default function SettingsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ restaurant_id: restaurantId }),
       })
-      const json = await resp.json()
-      if (!resp.ok || !json.url) throw new Error(json.error || 'Checkout failed')
+      const json = await resp.json().catch(() => ({}))
+      if (!resp.ok || !json.url)
+        throw new Error(json.error || `Checkout failed (HTTP ${resp.status})`)
       window.location.href = json.url
     } catch (e: any) {
       setBillingMsg(e.message || 'Checkout failed')
@@ -204,8 +205,9 @@ export default function SettingsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ restaurant_id: restaurantId }),
       })
-      const json = await resp.json()
-      if (!resp.ok || !json.url) throw new Error(json.error || 'Portal failed')
+      const json = await resp.json().catch(() => ({}))
+      if (!resp.ok || !json.url)
+        throw new Error(json.error || `Portal failed (HTTP ${resp.status})`)
       window.location.href = json.url
     } catch (e: any) {
       setBillingMsg(e.message || 'Portal failed')

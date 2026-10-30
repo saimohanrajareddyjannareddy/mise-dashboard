@@ -37,6 +37,28 @@ export async function POST(req: NextRequest) {
 
   const stripe = getStripe()
 
+  // Stripe SDK errors (bad key, price from another account, …) must
+  // come back as JSON — an unhandled throw makes Next return a
+  // non-JSON 500 and the client can only say 'Unexpected end of JSON
+  // input', hiding the real cause.
+  try {
+    return await createSession(sb, stripe, restaurant, restaurant_id, req)
+  } catch (e: any) {
+    return NextResponse.json(
+      { error: `Stripe error: ${e?.message ?? 'unknown'}` },
+      { status: 502 }
+    )
+  }
+}
+
+async function createSession(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sb: any,
+  stripe: ReturnType<typeof getStripe>,
+  restaurant: { stripe_customer_id: string | null; name: string; trial_ends_at: string | null },
+  restaurant_id: string,
+  req: NextRequest
+) {
   let customerId: string = restaurant.stripe_customer_id ?? ''
   if (!customerId) {
     // Owner's email for receipts: first owner membership on the restaurant.

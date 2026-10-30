@@ -36,9 +36,16 @@ export async function POST(req: NextRequest) {
   }
 
   const stripe = getStripe()
-  const session = await stripe.billingPortal.sessions.create({
-    customer: restaurant.stripe_customer_id,
-    return_url: `${req.nextUrl.origin}/dashboard/settings`,
-  })
-  return NextResponse.json({ url: session.url })
+  try {
+    const session = await stripe.billingPortal.sessions.create({
+      customer: restaurant.stripe_customer_id,
+      return_url: `${req.nextUrl.origin}/dashboard/settings`,
+    })
+    return NextResponse.json({ url: session.url })
+  } catch (e: any) {
+    return NextResponse.json(
+      { error: `Stripe error: ${e?.message ?? 'unknown'}` },
+      { status: 502 }
+    )
+  }
 }
