@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRestaurant } from '@/lib/restaurant'
 import {
@@ -69,10 +69,14 @@ export default function RecipesPage() {
   const [compYieldUnit, setCompYieldUnit] = useState('oz')
   const [newCompName, setNewCompName] = useState('')
   const [draftingComp, setDraftingComp] = useState<string | null>(null)
+  // Only the FIRST load shows the page spinner. Refreshes (after a
+  // draft, save or calibration) swap data in place — blanking the
+  // page collapsed its height and bounced the scroll to the top.
+  const loadedOnceRef = useRef(false)
 
   const load = useCallback(async () => {
     if (!restaurantId) return
-    setLoading(true)
+    if (!loadedOnceRef.current) setLoading(true)
     const canon = await fetchCanonicalItems(supabase)
     const [dishList, recipeMap, purchaseMap, metaMap] = await Promise.all([
       fetchDishSales(supabase, restaurantId, 30),
@@ -109,6 +113,7 @@ export default function RecipesPage() {
     setVariance(v.rows)
     setVarianceError(v.error)
     setVarianceRange({ start, end })
+    loadedOnceRef.current = true
     setLoading(false)
   }, [restaurantId, period])
 
@@ -358,6 +363,22 @@ export default function RecipesPage() {
     }
   }, [restaurantId])
 
+  // Keep the user at the dish/component they just drafted or opened
+  // instead of bouncing to the top of the page.
+  useEffect(() => {
+    if (!editing) return
+    document
+      .querySelector(`[data-dish-row="${CSS.escape(editing)}"]`)
+      ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [editing])
+
+  useEffect(() => {
+    if (!editingComp) return
+    document
+      .querySelector(`[data-comp-row="${CSS.escape(editingComp)}"]`)
+      ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [editingComp])
+
   async function applyCalibration(h: CalibrationHint) {
     if (!restaurantId) return
     setSaving(true)
@@ -550,7 +571,7 @@ export default function RecipesPage() {
                 const margin = cost ? d.avgPrice - cost.total : null
                 const isEditing = editing === d.menuItemName
                 return [
-                  <tr key={d.menuItemName} className="border-b border-ink/[0.05]">
+                  <tr key={d.menuItemName} data-dish-row={d.menuItemName} className="border-b border-ink/[0.05]">
                     <td className="px-5 py-3">
                       <span className="font-medium text-ink">{d.menuItemName}</span>
                       {status !== 'none' && (
@@ -795,7 +816,7 @@ export default function RecipesPage() {
                 const status = recipeStatus(lines)
                 const isEditing = editingComp === name
                 return (
-                  <div key={name} className="rounded-[10px] border border-ink/[0.08] px-4 py-3">
+                  <div key={name} data-comp-row={name} className="rounded-[10px] border border-ink/[0.08] px-4 py-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="text-[14px] font-medium text-ink">
                         {name}
