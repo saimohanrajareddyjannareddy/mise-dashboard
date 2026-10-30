@@ -46,8 +46,8 @@ const mainNav = [
 
 const navBase =
   'flex items-center gap-3 rounded-[8px] border-l-[3px] px-3 py-2.5 transition'
-const navActive = 'border-terracotta bg-[rgba(217,119,66,.16)] font-semibold text-[#FBE5D8]'
-const navIdle = 'border-transparent text-forest-light hover:bg-white/5 hover:text-cream'
+const navActive = 'border-pop bg-pop/15 font-semibold text-white'
+const navIdle = 'border-transparent text-[#C9C2B4] hover:bg-white/5 hover:text-cream'
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/)
@@ -163,12 +163,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* SIDEBAR — permanent at md+; below md it's an off-canvas drawer that
           slides in from the left when drawerOpen. */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-60 flex-col bg-forest px-4 py-6 text-[#DDE7E0] transition-transform md:z-10 md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-60 flex-col bg-coal px-4 py-6 text-[#E8E2D6] transition-transform md:z-10 md:translate-x-0 ${
           drawerOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <Link href="/dashboard" className="mb-5 px-2 font-serif text-[26px] text-cream">
-          InvoiceIQ<span className="text-terracotta-hover">.</span>
+        <Link href="/dashboard" className="mb-5 px-2 font-display text-[26px] font-extrabold tracking-tight text-cream">
+          InvoiceIQ<span className="text-pop">.</span>
         </Link>
 
         {/* Restaurant switcher — same useRestaurant() wiring, custom dropdown for readability. */}
@@ -181,7 +181,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             title={list.length > 1 ? 'Switch restaurant' : undefined}
             className="flex w-full items-center gap-2.5 rounded-[10px] bg-[#FFFDF9] px-2.5 py-2.5 text-left"
           >
-            <div className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-full bg-terracotta font-serif text-[15px] text-[#FDF8F0]">
+            <div className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-full bg-pop font-display text-[14px] font-bold text-white">
               {current ? initials(current.name) : '—'}
             </div>
             <div className="min-w-0 flex-1">
@@ -208,12 +208,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         setCurrent(r)
                         setSwitcherOpen(false)
                       }}
-                      className={`flex w-full items-center gap-2 rounded-[7px] px-2.5 py-2 text-left text-[13.5px] transition hover:bg-[rgba(217,119,66,.12)] ${
-                        selected ? 'font-semibold text-terracotta' : 'text-[#142821]'
+                      className={`flex w-full items-center gap-2 rounded-[7px] px-2.5 py-2 text-left text-[13.5px] transition hover:bg-[rgba(236,72,153,.10)] ${
+                        selected ? 'font-semibold text-pop' : 'text-[#142821]'
                       }`}
                     >
                       <span className="min-w-0 flex-1 truncate">{r.name}</span>
-                      {selected && <Check size={15} className="flex-shrink-0 text-terracotta" />}
+                      {selected && <Check size={15} className="flex-shrink-0 text-pop" />}
                     </button>
                   </li>
                 )
@@ -240,7 +240,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="mt-auto flex flex-col gap-0.5 border-t border-white/10 pt-4 text-[14px]">
           <div className="px-3 pb-1">
             <p className="truncate text-[13px] font-semibold text-cream">{displayName}</p>
-            <p className="truncate text-[11px] text-forest-light/70">{session.user.email}</p>
+            <p className="truncate text-[11px] text-[#C9C2B4]/70">{session.user.email}</p>
           </div>
           <Link
             href="/dashboard/settings"
@@ -275,7 +275,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <Menu size={18} />
             </button>
             <div className="min-w-0">
-              <h1 className="truncate font-serif text-[28px] leading-none text-ink">{greeting}</h1>
+              <h1 className="truncate font-display text-[28px] font-extrabold leading-none tracking-[-0.5px] text-ink">{greeting}</h1>
               {current && <p className="mt-1.5 truncate text-[13px] text-ink-muted">{current.name}</p>}
             </div>
           </div>
@@ -295,7 +295,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             >
               <Bell size={18} />
               {alertCount > 0 && (
-                <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-terracotta px-1 text-[10px] font-bold text-white">
+                <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-pop px-1 text-[10px] font-bold text-white">
                   {alertCount}
                 </span>
               )}
@@ -305,12 +305,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               onClick={() => setAskOpen(true)}
               className="flex items-center gap-2 rounded-[10px] border border-ink/[0.14] bg-cream-surface px-3.5 py-2.5 text-[14px] font-semibold text-ink-2 transition hover:bg-cream-surface-alt"
             >
-              <Sparkles size={16} className="text-terracotta" /><span className="hidden md:inline">Ask</span>
+              <Sparkles size={16} className="text-pop" /><span className="hidden md:inline">Ask</span>
             </button>
             <Link
               href="/dashboard/upload"
               aria-label="Add invoice"
-              className="flex items-center gap-2 rounded-[10px] bg-terracotta px-4 py-2.5 text-[14px] font-semibold text-[#FDF8F0] shadow-[0_2px_8px_rgba(196,100,45,.3)] transition hover:bg-terracotta-hover"
+              className="flex items-center gap-2 rounded-[10px] bg-ink px-4 py-2.5 text-[14px] font-semibold text-[#FDF8F0] shadow-[0_2px_8px_rgba(23,19,16,.35)] transition hover:bg-black"
             >
               {/* Label collapses to an icon-only button below md so the header row fits the viewport. */}
               <Plus size={16} strokeWidth={2.5} /><span className="hidden md:inline">Add invoice</span>
@@ -324,7 +324,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {!restLoading && list.length === 0 ? (
           <main className="flex flex-1 items-center justify-center p-8">
             <div className="max-w-md space-y-3 text-center">
-              <h2 className="font-serif text-[24px] text-ink">No restaurants yet</h2>
+              <h2 className="font-display text-[24px] font-bold text-ink">No restaurants yet</h2>
               <p className="text-sm text-ink-3">
                 You&apos;re signed in but not a member of any restaurant. Create one to get started,
                 or ask your admin for an invite.

@@ -487,7 +487,7 @@ export default function UploadPage() {
               </div>
               <div className="flex gap-3">
                 <a href="/dashboard/review"
-                  className="px-4 py-2 bg-amber-500 text-white rounded-lg text-sm hover:bg-amber-600 transition">
+                  className="px-4 py-2 bg-pop text-white rounded-lg text-sm hover:bg-pop-hover transition">
                   Go to Review Queue
                 </a>
                 <a href={`/dashboard/invoices/${savedId}`}
@@ -496,7 +496,7 @@ export default function UploadPage() {
                 </a>
                 {remainingCount > 0 && (
                   <button onClick={advanceQueue}
-                    className="px-4 py-2 bg-amber-500 text-white rounded-lg text-sm hover:bg-amber-600 transition">
+                    className="px-4 py-2 bg-pop text-white rounded-lg text-sm hover:bg-pop-hover transition">
                     Review Next Invoice ({remainingCount} left)
                   </button>
                 )}
@@ -733,7 +733,7 @@ export default function UploadPage() {
 
           <div className="flex items-center gap-3">
             <button onClick={saveInvoice} disabled={status === 'saving'}
-              className="px-6 py-2.5 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600 disabled:opacity-50 transition">
+              className="px-6 py-2.5 bg-pop text-white rounded-lg text-sm font-medium hover:bg-pop-hover disabled:opacity-50 transition">
               {status === 'saving' ? 'Saving...' : 'Save to Records'}
             </button>
             <button onClick={advanceQueue}

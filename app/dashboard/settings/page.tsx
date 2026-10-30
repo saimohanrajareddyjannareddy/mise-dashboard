@@ -530,7 +530,7 @@ export default function SettingsPage() {
 
         <div className="flex items-center gap-3">
           <button onClick={saveClover} disabled={status === 'saving'}
-            className="px-5 py-2 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600 disabled:opacity-50 transition">
+            className="px-5 py-2 bg-pop text-white rounded-lg text-sm font-medium hover:bg-pop-hover disabled:opacity-50 transition">
             {status === 'saving' ? 'Saving...' : 'Save'}
           </button>
           {status === 'saved' && <span className="text-sm text-green-600 flex items-center gap-1"><CheckCircle size={14} /> Saved</span>}
@@ -608,7 +608,7 @@ export default function SettingsPage() {
           <button
             onClick={startCheckout}
             disabled={billingBusy}
-            className="px-5 py-2 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600 disabled:opacity-50 transition"
+            className="px-5 py-2 bg-pop text-white rounded-lg text-sm font-medium hover:bg-pop-hover disabled:opacity-50 transition"
           >
             {billingBusy ? 'Opening checkout…' : 'Subscribe'}
           </button>
@@ -796,7 +796,7 @@ export default function SettingsPage() {
 
         <div className="flex items-center gap-3">
           <button onClick={saveCards} disabled={cardStatus === 'saving'}
-            className="px-5 py-2 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600 disabled:opacity-50 transition">
+            className="px-5 py-2 bg-pop text-white rounded-lg text-sm font-medium hover:bg-pop-hover disabled:opacity-50 transition">
             {cardStatus === 'saving' ? 'Saving...' : 'Save cards'}
           </button>
           {cardStatus === 'saved' && <span className="text-sm text-green-600 flex items-center gap-1"><CheckCircle size={14} /> Saved</span>}

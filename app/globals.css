@@ -24,6 +24,12 @@
   --color-ink-muted: #8a8377;
   --color-terracotta: #c4642d;
   --color-terracotta-hover: #d97742;
+  /* Power-pop accent (2026-10-29 reskin, Sai's direction: black +
+     cream + one loud accent, Power Shifter energy) */
+  --color-pop: #ec4899;
+  --color-pop-hover: #db2777;
+  --color-coal: #171310;
+  --font-display: var(--font-archivo);
   --color-forest: #1e3a2f;
   --color-forest-light: #a9c4b4;
 }

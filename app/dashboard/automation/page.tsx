@@ -371,7 +371,7 @@ function SourceBars({ sources }: { sources: Record<Source, number> }) {
           <div className="text-xs text-gray-600 w-16 capitalize">{s}</div>
           <div className="flex-1 bg-gray-100 rounded h-5 overflow-hidden">
             <div
-              className="bg-amber-500 h-full"
+              className="bg-pop h-full"
               style={{ width: `${(sources[s] / max) * 100}%` }}
             />
           </div>
@@ -389,7 +389,7 @@ function StatusBars({ statuses }: { statuses: Record<Status, number> }) {
     done: 'bg-green-500',
     processing: 'bg-blue-500',
     pending: 'bg-gray-400',
-    failed: 'bg-amber-500',
+    failed: 'bg-pop',
     dead: 'bg-red-500',
   }
   return (

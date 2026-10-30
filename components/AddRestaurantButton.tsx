@@ -37,7 +37,7 @@ export default function AddRestaurantButton() {
       <button
         onClick={() => setOpen(true)}
         title="Add restaurant"
-        className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-400 transition shadow-sm"
+        className="flex items-center gap-1.5 px-3 py-1.5 bg-pop text-white rounded-lg text-sm font-medium hover:bg-pop-hover transition shadow-sm"
       >
         <Plus size={14} strokeWidth={2.5} />
         {/* Icon-only below md so the shell header fits a mobile viewport (label preserved at md+). */}
@@ -103,7 +103,7 @@ export default function AddRestaurantButton() {
               <button
                 type="submit"
                 disabled={busy || !name.trim()}
-                className="px-4 py-2 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-400 transition disabled:opacity-50"
+                className="px-4 py-2 bg-pop text-white rounded-lg text-sm font-medium hover:bg-pop-hover transition disabled:opacity-50"
               >
                 {busy ? 'Creating…' : 'Create restaurant'}
               </button>

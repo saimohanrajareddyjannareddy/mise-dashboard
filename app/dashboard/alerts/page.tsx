@@ -82,7 +82,7 @@ export default function AlertsPage() {
       <div className="flex flex-wrap items-center gap-2 mb-6">
         {([['all', 'All moves'], ['up', '↑ Price increases'], ['down', '↓ Price drops']] as const).map(([val, label]) => (
           <button key={val} onClick={() => setFilter(val)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition ${filter === val ? 'bg-amber-500 text-white' : 'bg-white border text-gray-600 hover:bg-gray-50'}`}>
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition ${filter === val ? 'bg-pop text-white' : 'bg-white border text-gray-600 hover:bg-gray-50'}`}>
             {label}
           </button>
         ))}

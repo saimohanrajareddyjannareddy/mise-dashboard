@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Instrument_Serif, Inter, IBM_Plex_Mono } from 'next/font/google'
+import { Archivo, Instrument_Serif, Inter, IBM_Plex_Mono } from 'next/font/google'
 import './globals.css'
 import { AuthProvider } from '@/lib/auth'
 import { RestaurantProvider } from '@/lib/restaurant'
@@ -16,6 +16,14 @@ const instrumentSerif = Instrument_Serif({
 const inter = Inter({
   variable: '--font-inter',
   subsets: ['latin'],
+})
+
+// Display grotesque for the 2026-10-29 reskin — heavy weights carry
+// the wordmark, greetings and big numbers.
+const archivo = Archivo({
+  variable: '--font-archivo',
+  subsets: ['latin'],
+  weight: ['600', '700', '800', '900'],
 })
 
 const plexMono = IBM_Plex_Mono({
@@ -37,7 +45,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${instrumentSerif.variable} ${plexMono.variable} h-full antialiased`}
+      className={`${inter.variable} ${instrumentSerif.variable} ${plexMono.variable} ${archivo.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <AuthProvider>

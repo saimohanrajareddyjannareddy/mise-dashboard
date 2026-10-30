@@ -65,7 +65,7 @@ export default function PriceTrackerPage() {
       <div className="flex gap-2 mb-6">
         {([['all', 'All Items'], ['up', '↑ Price Increases'], ['down', '↓ Price Decreases']] as const).map(([val, label]) => (
           <button key={val} onClick={() => setFilter(val)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition ${filter === val ? 'bg-amber-500 text-white' : 'bg-white border text-gray-600 hover:bg-gray-50'}`}>
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition ${filter === val ? 'bg-pop text-white' : 'bg-white border text-gray-600 hover:bg-gray-50'}`}>
             {label}
           </button>
         ))}

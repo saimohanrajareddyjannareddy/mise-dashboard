@@ -85,7 +85,7 @@ export default function WastagePage() {
         <div className="flex gap-2">
           {(['weekly', 'monthly'] as const).map(r => (
             <button key={r} onClick={() => setRange(r)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium capitalize transition ${range === r ? 'bg-amber-500 text-white' : 'bg-white border text-gray-600 hover:bg-gray-50'}`}>
+              className={`px-4 py-2 rounded-lg text-sm font-medium capitalize transition ${range === r ? 'bg-pop text-white' : 'bg-white border text-gray-600 hover:bg-gray-50'}`}>
               {r}
             </button>
           ))}
@@ -101,7 +101,7 @@ export default function WastagePage() {
               Once connected, you&apos;ll see purchased vs sold side by side per category, and a waste % for each item.
             </div>
             <a href="/dashboard/settings"
-              className="inline-block px-4 py-2 bg-amber-500 text-white rounded-lg text-sm hover:bg-amber-600 transition">
+              className="inline-block px-4 py-2 bg-pop text-white rounded-lg text-sm hover:bg-pop-hover transition">
               Go to Settings → Connect Clover
             </a>
           </div>

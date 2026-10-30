@@ -121,7 +121,7 @@ export default function ActivityPanel() {
         <Activity size={15} className={runningCount > 0 ? 'animate-pulse text-amber-400' : ''} />
         <span className="text-xs font-medium">Activity</span>
         {runningCount > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white">
+          <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-pop text-[10px] font-bold text-white">
             {runningCount}
           </span>
         )}
