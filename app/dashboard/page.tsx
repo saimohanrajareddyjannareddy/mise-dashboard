@@ -128,7 +128,7 @@ export default function DashboardPage() {
   }
 
   // ---- Presentation-only derived values (no new data) ----
-  const money = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+  const money = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
   const avgPerInvoice = invoiceCount ? totalSpend / invoiceCount : 0
   const hasTrend = prevSpend !== null && prevSpend > 0
   const trendPct = hasTrend ? ((totalSpend - prevSpend!) / prevSpend!) * 100 : 0
@@ -168,52 +168,55 @@ export default function DashboardPage() {
       {/* First-run setup checklist — renders only while setup is incomplete */}
       <SetupChecklist />
 
-      {/* KPI CARDS — real data */}
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <div className="rounded-[14px] border border-ink/[0.08] bg-cream-surface p-[22px]">
-          <div className="text-[12.5px] tracking-[0.02em] text-ink-muted">Total spend this period</div>
-          <div className="mt-2 font-mono text-[30px] font-semibold text-ink">{money(totalSpend)}</div>
+      {/* KPI BAND — real data. One unified panel with divided segments
+          (not five separate boxes): values use a fluid clamp() size plus
+          min-w-0 + truncate, so a growing number can never push out of
+          its segment — it shrinks, and the full value is on hover. */}
+      <div className="mb-6 grid grid-cols-2 overflow-hidden rounded-[14px] border border-ink/[0.08] bg-cream-surface md:grid-cols-3 xl:grid-cols-5 xl:divide-x xl:divide-ink/[0.06]">
+        <div className="min-w-0 px-5 py-5">
+          <div className="truncate text-[11px] font-semibold uppercase tracking-[0.09em] text-ink-muted">Total spend this period</div>
+          <div title={money(totalSpend)} className="mt-1.5 truncate font-display text-[clamp(1.3rem,1.05rem+1.1vw,1.85rem)] font-extrabold leading-tight tracking-[-0.5px] text-ink">{money(totalSpend)}</div>
           {hasTrend ? (
-            <div className={`mt-2 font-mono text-[13px] ${trendUp ? 'text-terracotta' : 'text-ink-muted'}`}>
+            <div className={`mt-1 truncate font-mono text-[12px] ${trendUp ? 'text-terracotta' : 'text-ink-muted'}`}>
               {trendUp ? '↑' : '↓'} {Math.abs(trendPct).toFixed(1)}% vs prev
             </div>
           ) : (
-            <div className="mt-2 font-mono text-[13px] text-ink-muted">no prior period</div>
+            <div className="mt-1 truncate font-mono text-[12px] text-ink-muted">no prior period</div>
           )}
         </div>
 
-        <div className="rounded-[14px] border border-ink/[0.08] bg-cream-surface p-[22px]">
-          <div className="text-[12.5px] tracking-[0.02em] text-ink-muted">Avg per invoice</div>
-          <div className="mt-2 font-mono text-[30px] font-semibold text-ink">{money(avgPerInvoice)}</div>
-          <div className="mt-2 font-mono text-[13px] text-ink-muted">this period</div>
+        <div className="min-w-0 px-5 py-5">
+          <div className="truncate text-[11px] font-semibold uppercase tracking-[0.09em] text-ink-muted">Avg per invoice</div>
+          <div title={money(avgPerInvoice)} className="mt-1.5 truncate font-display text-[clamp(1.3rem,1.05rem+1.1vw,1.85rem)] font-extrabold leading-tight tracking-[-0.5px] text-ink">{money(avgPerInvoice)}</div>
+          <div className="mt-1 truncate font-mono text-[12px] text-ink-muted">this period</div>
         </div>
 
-        <div className="rounded-[14px] border border-ink/[0.08] bg-cream-surface p-[22px]">
-          <div className="text-[12.5px] tracking-[0.02em] text-ink-muted">Invoices parsed</div>
-          <div className="mt-2 font-mono text-[30px] font-semibold text-ink">{invoiceCount}</div>
-          <div className="mt-2 font-mono text-[13px] text-ink-muted">in selected range</div>
+        <div className="min-w-0 px-5 py-5">
+          <div className="truncate text-[11px] font-semibold uppercase tracking-[0.09em] text-ink-muted">Invoices parsed</div>
+          <div title={String(invoiceCount)} className="mt-1.5 truncate font-display text-[clamp(1.3rem,1.05rem+1.1vw,1.85rem)] font-extrabold leading-tight tracking-[-0.5px] text-ink">{invoiceCount}</div>
+          <div className="mt-1 truncate font-mono text-[12px] text-ink-muted">in selected range</div>
         </div>
 
-        <div className="rounded-[14px] border border-ink/[0.08] bg-cream-surface p-[22px]">
-          <div className="text-[12.5px] tracking-[0.02em] text-ink-muted">Top category</div>
-          <div className="mt-2 truncate font-serif text-[28px] text-ink">{topCategory}</div>
-          <div className="mt-2 font-mono text-[13px] text-ink-muted">by spend</div>
+        <div className="min-w-0 px-5 py-5">
+          <div className="truncate text-[11px] font-semibold uppercase tracking-[0.09em] text-ink-muted">Top category</div>
+          <div title={topCategory} className="mt-1.5 truncate font-serif text-[clamp(1.3rem,1.05rem+1.1vw,1.85rem)] leading-tight text-ink">{topCategory}</div>
+          <div className="mt-1 truncate font-mono text-[12px] text-ink-muted">by spend</div>
         </div>
 
-        <Link href="/dashboard/food-cost" className="rounded-[14px] border border-ink/[0.08] bg-cream-surface p-[22px] transition hover:border-terracotta/40">
-          <div className="text-[12.5px] tracking-[0.02em] text-ink-muted">Food cost %</div>
+        <Link href="/dashboard/food-cost" className="min-w-0 px-5 py-5 transition hover:bg-cream-surface-alt">
+          <div className="truncate text-[11px] font-semibold uppercase tracking-[0.09em] text-ink-muted">Food cost %</div>
           {foodCostPct !== null ? (
             <>
               {/* >35% is the typical "high" threshold for restaurant food cost */}
-              <div className={`mt-2 font-mono text-[30px] font-semibold ${foodCostPct > 35 ? 'text-terracotta' : 'text-ink'}`}>
+              <div title={`${foodCostPct.toFixed(1)}%`} className={`mt-1.5 truncate font-display text-[clamp(1.3rem,1.05rem+1.1vw,1.85rem)] font-extrabold leading-tight tracking-[-0.5px] ${foodCostPct > 35 ? 'text-terracotta' : 'text-ink'}`}>
                 {foodCostPct.toFixed(1)}%
               </div>
-              <div className="mt-2 font-mono text-[13px] text-ink-muted">trailing 30d · Clover</div>
+              <div className="mt-1 truncate font-mono text-[12px] text-ink-muted">trailing 30d · Clover</div>
             </>
           ) : (
             <>
-              <div className="mt-2 font-mono text-[30px] font-semibold text-ink">—</div>
-              <div className="mt-2 font-mono text-[13px] text-ink-muted">no sales synced yet</div>
+              <div className="mt-1.5 truncate font-display text-[clamp(1.3rem,1.05rem+1.1vw,1.85rem)] font-extrabold leading-tight tracking-[-0.5px] text-ink">—</div>
+              <div className="mt-1 truncate font-mono text-[12px] text-ink-muted">no sales synced yet</div>
             </>
           )}
         </Link>
