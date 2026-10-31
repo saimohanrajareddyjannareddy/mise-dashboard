@@ -137,7 +137,7 @@ export default function DashboardPage() {
   const rangePill = (active: boolean) =>
     `rounded-full px-4 py-1.5 text-[13px] font-medium capitalize transition ${
       active
-        ? 'bg-forest text-cream'
+        ? 'bg-ink text-cream'
         : 'border border-ink/[0.12] bg-cream-surface text-ink-3 hover:bg-cream-surface-alt'
     }`
 
@@ -174,7 +174,7 @@ export default function DashboardPage() {
           <div className="text-[12.5px] tracking-[0.02em] text-ink-muted">Total spend this period</div>
           <div className="mt-2 font-mono text-[30px] font-semibold text-ink">{money(totalSpend)}</div>
           {hasTrend ? (
-            <div className={`mt-2 font-mono text-[13px] ${trendUp ? 'text-terracotta' : 'text-forest'}`}>
+            <div className={`mt-2 font-mono text-[13px] ${trendUp ? 'text-terracotta' : 'text-ink-muted'}`}>
               {trendUp ? '↑' : '↓'} {Math.abs(trendPct).toFixed(1)}% vs prev
             </div>
           ) : (
@@ -261,7 +261,7 @@ export default function DashboardPage() {
                 />
                 <Bar dataKey="total" radius={[6, 6, 0, 0]}>
                   {categoryData.map((_, i) => (
-                    // Highlight the top (largest) category in terracotta; rest forest green.
+                    // Highlight the top (largest) category in pop pink; rest coal.
                     <Cell key={i} fill={i === 0 ? '#EC4899' : '#171310'} />
                   ))}
                 </Bar>

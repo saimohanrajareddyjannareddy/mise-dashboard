@@ -521,21 +521,21 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="p-8 max-w-2xl">
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">Settings</h1>
-      <p className="text-gray-500 text-sm mb-8">Manage integrations and connections.</p>
+    <div className="p-4 md:p-8 max-w-2xl">
+      <h1 className="font-display text-[28px] font-extrabold tracking-[-0.5px] text-ink mb-1">Settings</h1>
+      <p className="text-ink-muted text-sm mb-8">Manage integrations and connections.</p>
 
-      <div className="bg-white rounded-xl border p-6 mb-6">
+      <div className="bg-cream-surface rounded-[14px] border border-ink/[0.08] p-6 mb-6">
         <div className="flex items-center gap-3 mb-5">
           <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
             <Link2 size={18} className="text-green-600" />
           </div>
           <div>
-            <div className="font-semibold text-gray-900 flex items-center gap-2">
+            <div className="font-display text-[16px] font-bold text-ink flex items-center gap-2">
               Clover POS
               {connected && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex items-center gap-1"><CheckCircle size={10} /> Connected</span>}
             </div>
-            <div className="text-sm text-gray-500">Pull sales data to enable wastage tracking</div>
+            <div className="text-sm text-ink-muted">Pull sales data to enable wastage tracking</div>
           </div>
         </div>
 
@@ -554,14 +554,14 @@ export default function SettingsPage() {
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <a
                 href={`/api/clover/connect?restaurant_id=${restaurantId}`}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3.5 py-1.5 text-[13px] font-medium text-white hover:bg-green-700 transition"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-pop px-3.5 py-1.5 text-[13px] font-medium text-white hover:bg-pop-hover transition"
               >
                 <Link2 size={13} /> Reconnect
               </a>
               <button
                 onClick={disconnectClover}
                 disabled={disconnecting}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3.5 py-1.5 text-[13px] font-medium text-red-600 hover:bg-red-50 disabled:opacity-50 transition"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-cream-surface px-3.5 py-1.5 text-[13px] font-medium text-red-600 hover:bg-red-50 disabled:opacity-50 transition"
               >
                 {disconnecting ? 'Disconnecting…' : 'Disconnect'}
               </button>
@@ -575,11 +575,11 @@ export default function SettingsPage() {
           <div className="mb-5">
             <a
               href={`/api/clover/connect?restaurant_id=${restaurantId}`}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-pop text-white rounded-lg text-sm font-medium hover:bg-pop-hover transition"
             >
               <Link2 size={15} /> Connect with Clover{oauthEnv === 'sandbox' ? ' (sandbox)' : ''}
             </a>
-            <p className="text-xs text-gray-400 mt-2">
+            <p className="text-xs text-ink-muted mt-2">
               Recommended — you approve access on Clover&apos;s own site, no token copying.
               Or paste a token manually below.
             </p>
@@ -588,25 +588,25 @@ export default function SettingsPage() {
 
         <div className="space-y-4 mb-5">
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1.5 uppercase tracking-wide">Merchant ID</label>
+            <label className="block text-xs font-medium text-ink-3 mb-1.5 uppercase tracking-wide">Merchant ID</label>
             <input
               value={merchantId}
               onChange={e => setMerchantId(e.target.value)}
               placeholder="e.g. ABC12DEFGHIJK"
-              className="w-full border rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-amber-500"
+              className="w-full rounded-[9px] border border-ink/[0.16] bg-cream-surface px-3 py-2 text-sm text-ink-2 outline-none focus:border-terracotta"
             />
-            <p className="text-xs text-gray-400 mt-1">Found in Clover Dashboard → Account → About</p>
+            <p className="text-xs text-ink-muted mt-1">Found in Clover Dashboard → Account → About</p>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1.5 uppercase tracking-wide flex items-center gap-1"><Key size={11} /> API Key</label>
+            <label className="block text-xs font-medium text-ink-3 mb-1.5 uppercase tracking-wide flex items-center gap-1"><Key size={11} /> API Key</label>
             <input
               value={apiKey}
               onChange={e => setApiKey(e.target.value)}
               type="password"
               placeholder="Clover API token"
-              className="w-full border rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-amber-500"
+              className="w-full rounded-[9px] border border-ink/[0.16] bg-cream-surface px-3 py-2 text-sm text-ink-2 outline-none focus:border-terracotta"
             />
-            <p className="text-xs text-gray-400 mt-1">Clover Dashboard → Setup → API Tokens → Create Token</p>
+            <p className="text-xs text-ink-muted mt-1">Clover Dashboard → Setup → API Tokens → Create Token</p>
           </div>
         </div>
 
@@ -623,26 +623,26 @@ export default function SettingsPage() {
           <div className="mt-5 pt-5 border-t">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm font-medium text-gray-800">Sync Sales Data</div>
-                <div className="text-xs text-gray-400 mt-0.5">Pull last 30 days of sales from Clover</div>
+                <div className="text-sm font-medium text-ink">Sync Sales Data</div>
+                <div className="text-xs text-ink-muted mt-0.5">Pull last 30 days of sales from Clover</div>
               </div>
               <button onClick={triggerSync} disabled={syncing}
-                className="px-4 py-2 bg-white border rounded-lg text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition">
+                className="px-4 py-2 bg-cream-surface border border-ink/[0.14] rounded-[9px] text-sm text-ink-3 hover:bg-cream-surface-alt disabled:opacity-50 transition">
                 {syncing ? 'Syncing...' : 'Sync Now'}
               </button>
             </div>
-            {syncMsg && <p className="text-sm text-gray-600 mt-2">{syncMsg}</p>}
+            {syncMsg && <p className="text-sm text-ink-3 mt-2">{syncMsg}</p>}
           </div>
         )}
       </div>
 
-      <div className="bg-white rounded-xl border p-6 mb-6">
+      <div className="bg-cream-surface rounded-[14px] border border-ink/[0.08] p-6 mb-6">
         <div className="flex items-center gap-3 mb-5">
-          <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
-            <CreditCard size={18} className="text-purple-600" />
+          <div className="w-10 h-10 bg-pop/10 rounded-xl flex items-center justify-center">
+            <CreditCard size={18} className="text-pop" />
           </div>
           <div>
-            <div className="font-semibold text-gray-900 flex items-center gap-2">
+            <div className="font-display text-[16px] font-bold text-ink flex items-center gap-2">
               Billing
               {(() => {
                 const s = current?.subscription_status ?? 'trialing'
@@ -653,7 +653,7 @@ export default function SettingsPage() {
                     : s === 'past_due'
                       ? 'bg-red-100 text-red-700'
                       : s === 'canceled'
-                        ? 'bg-gray-100 text-gray-600'
+                        ? 'bg-ink/[0.06] text-ink-3'
                         : 'bg-amber-100 text-amber-700'
                 return (
                   <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${cls}`}>
@@ -662,7 +662,7 @@ export default function SettingsPage() {
                 )
               })()}
             </div>
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-ink-muted">
               {current?.trial_ends_at
                 ? `Free trial ${new Date(current.trial_ends_at) > new Date() ? 'ends' : 'ended'} ${new Date(current.trial_ends_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · per-location monthly plan`
                 : 'Per-location monthly plan'}
@@ -677,12 +677,12 @@ export default function SettingsPage() {
         )}
 
         {!billingConfigured ? (
-          <p className="text-sm text-gray-400">Payments aren&apos;t switched on yet.</p>
+          <p className="text-sm text-ink-muted">Payments aren&apos;t switched on yet.</p>
         ) : hasSubscription ? (
           <button
             onClick={openPortal}
             disabled={billingBusy}
-            className="px-5 py-2 bg-white border rounded-lg text-sm text-gray-700 font-medium hover:bg-gray-50 disabled:opacity-50 transition"
+            className="px-5 py-2 bg-cream-surface border border-ink/[0.14] rounded-[9px] text-sm font-medium text-ink-2 hover:bg-cream-surface-alt disabled:opacity-50 transition"
           >
             {billingBusy ? 'Opening…' : 'Manage billing'}
           </button>
@@ -696,16 +696,16 @@ export default function SettingsPage() {
           </button>
         )}
         {billingConfigured && (
-          <p className="text-xs text-gray-400 mt-3">
+          <p className="text-xs text-ink-muted mt-3">
             Secure checkout and card management run on Stripe. Cancel anytime from the billing portal.
           </p>
         )}
 
         {billingConfigured && billingHistory && (
           <div className="mt-6 border-t pt-5">
-            <div className="text-sm font-medium text-gray-700 mb-2">Renewal</div>
+            <div className="text-sm font-medium text-ink-2 mb-2">Renewal</div>
             {billingHistory.subscription ? (
-              <p className="text-sm text-gray-500 mb-5">
+              <p className="text-sm text-ink-muted mb-5">
                 {billingHistory.subscription.status === 'trialing' &&
                 billingHistory.subscription.trial_end
                   ? `Free trial ends ${new Date(billingHistory.subscription.trial_end * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} — first charge of $${((billingHistory.subscription.amount ?? 9900) / 100).toFixed(2)} then, renews monthly.`
@@ -714,19 +714,19 @@ export default function SettingsPage() {
                     : `Renews ${new Date(billingHistory.subscription.current_period_end * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · $${((billingHistory.subscription.amount ?? 9900) / 100).toFixed(2)}/month.`}
               </p>
             ) : (
-              <p className="text-sm text-gray-400 mb-5">No subscription yet.</p>
+              <p className="text-sm text-ink-muted mb-5">No subscription yet.</p>
             )}
 
-            <div className="text-sm font-medium text-gray-700 mb-2">Payment history</div>
+            <div className="text-sm font-medium text-ink-2 mb-2">Payment history</div>
             {billingHistory.invoices.length === 0 ? (
-              <p className="text-sm text-gray-400">
+              <p className="text-sm text-ink-muted">
                 No invoices yet — history appears after your first charge.
               </p>
             ) : (
               <div className="divide-y">
                 {billingHistory.invoices.map((inv: any) => (
                   <div key={inv.id} className="flex items-center justify-between py-2 text-sm">
-                    <span className="text-gray-500">
+                    <span className="text-ink-muted">
                       {new Date(inv.created * 1000).toLocaleDateString('en-US', {
                         month: 'short',
                         day: 'numeric',
@@ -735,8 +735,8 @@ export default function SettingsPage() {
                       · {inv.number ?? 'Invoice'}
                     </span>
                     <span className="flex items-center gap-3">
-                      <span className="capitalize text-gray-500">{inv.status}</span>
-                      <span className="font-medium text-gray-700">
+                      <span className="capitalize text-ink-muted">{inv.status}</span>
+                      <span className="font-medium text-ink-2">
                         ${(((inv.amount_paid || inv.total) ?? 0) / 100).toFixed(2)}
                       </span>
                       {inv.hosted_invoice_url && (
@@ -758,28 +758,28 @@ export default function SettingsPage() {
         )}
       </div>
 
-      <div className="bg-white rounded-xl border p-6 mb-6">
+      <div className="bg-cream-surface rounded-[14px] border border-ink/[0.08] p-6 mb-6">
         <div className="flex items-center gap-3 mb-5">
-          <div className="w-10 h-10 bg-rose-100 rounded-xl flex items-center justify-center">
-            <Mail size={18} className="text-rose-600" />
+          <div className="w-10 h-10 bg-pop/10 rounded-xl flex items-center justify-center">
+            <Mail size={18} className="text-pop" />
           </div>
           <div>
-            <div className="font-semibold text-gray-900 flex items-center gap-2">
+            <div className="font-display text-[16px] font-bold text-ink flex items-center gap-2">
               Email invoices
               {mailConnected && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex items-center gap-1"><CheckCircle size={10} /> Connected</span>}
             </div>
-            <div className="text-sm text-gray-500">We scan your inbox for supplier invoices and import them for you</div>
+            <div className="text-sm text-ink-muted">We scan your inbox for supplier invoices and import them for you</div>
           </div>
         </div>
 
         {mailBanner && (
-          <div className="flex items-start gap-2 bg-blue-50 text-blue-800 text-sm rounded-lg px-3 py-2 mb-4">
+          <div className="flex items-start gap-2 border border-ink/[0.08] bg-cream-surface-alt text-ink-2 text-sm rounded-lg px-3 py-2 mb-4">
             <AlertCircle size={15} className="mt-0.5 shrink-0" />
             <span>{mailBanner}</span>
           </div>
         )}
 
-        <p className="text-sm text-gray-600 mb-4">
+        <p className="text-sm text-ink-3 mb-4">
           Lost a paper receipt? If your supplier emailed a copy — or sends invoices by
           email from their app — connecting your inbox lets InvoiceIQ find and import them
           automatically. We only import emails that look like supplier invoices
@@ -789,7 +789,7 @@ export default function SettingsPage() {
 
         {mailConnected ? (
           <div className="space-y-3">
-            <p className="text-sm text-gray-700">
+            <p className="text-sm text-ink-2">
               Scanning <span className="font-medium">{mailEmail}</span>
               {mailLastScan
                 ? ` · last scan ${new Date(mailLastScan).toLocaleString()}`
@@ -800,13 +800,13 @@ export default function SettingsPage() {
               <button
                 onClick={scanNow}
                 disabled={mailScanning}
-                className="bg-gray-900 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-800 disabled:opacity-50"
+                className="bg-ink text-white text-sm font-medium px-4 py-2 rounded-[9px] hover:bg-black disabled:opacity-50"
               >
                 {mailScanning ? 'Scanning…' : 'Scan now'}
               </button>
               <button
                 onClick={disconnectMail}
-                className="text-sm font-medium px-4 py-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
+                className="text-sm font-medium px-4 py-2 rounded-lg border border-ink/[0.14] bg-cream-surface text-ink-3 hover:bg-cream-surface-alt"
               >
                 Disconnect
               </button>
@@ -815,33 +815,33 @@ export default function SettingsPage() {
         ) : mailConfigured ? (
           <a
             href={`/api/email/connect?restaurant_id=${restaurantId ?? ''}`}
-            className="inline-block bg-gray-900 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-800"
+            className="inline-block bg-ink text-white text-sm font-medium px-4 py-2 rounded-[9px] hover:bg-black"
           >
             Connect Gmail
           </a>
         ) : (
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-ink-muted">
             Email scanning isn't switched on yet — it will appear here once it's ready.
           </p>
         )}
-        {mailMsg && <p className="text-sm text-gray-600 mt-3">{mailMsg}</p>}
+        {mailMsg && <p className="text-sm text-ink-3 mt-3">{mailMsg}</p>}
       </div>
 
-      <div className="bg-white rounded-xl border p-6 mb-6">
+      <div className="bg-cream-surface rounded-[14px] border border-ink/[0.08] p-6 mb-6">
         <div className="flex items-center gap-3 mb-5">
           <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
             <MessageCircle size={18} className="text-green-600" />
           </div>
           <div>
-            <div className="font-semibold text-gray-900 flex items-center gap-2">
+            <div className="font-display text-[16px] font-bold text-ink flex items-center gap-2">
               WhatsApp invoices
               {waConfigured && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex items-center gap-1"><CheckCircle size={10} /> Live</span>}
             </div>
-            <div className="text-sm text-gray-500">Forward receipt photos on WhatsApp — they file themselves into Review</div>
+            <div className="text-sm text-ink-muted">Forward receipt photos on WhatsApp — they file themselves into Review</div>
           </div>
         </div>
 
-        <p className="text-sm text-gray-600 mb-4">
+        <p className="text-sm text-ink-3 mb-4">
           Suppliers send invoices on WhatsApp; paper gets lost. Register the phone numbers
           of the people who handle receipts — owner, manager, whoever buys — and any invoice
           photo or PDF they forward to the InvoiceIQ WhatsApp number is read automatically
@@ -850,12 +850,12 @@ export default function SettingsPage() {
         </p>
 
         {!waConfigured ? (
-          <p className="text-sm text-gray-400 mb-4">
+          <p className="text-sm text-ink-muted mb-4">
             WhatsApp intake is not switched on yet — you can register numbers now, and they
             will start working the moment it goes live.
           </p>
         ) : waIntakeNumber ? (
-          <p className="text-sm text-gray-700 mb-4">
+          <p className="text-sm text-ink-2 mb-4">
             Send receipts to <span className="font-medium">{waIntakeNumber}</span> from a
             registered number.
           </p>
@@ -864,16 +864,16 @@ export default function SettingsPage() {
         {waNumbers.length > 0 && (
           <div className="space-y-2 mb-4">
             {waNumbers.map((n) => (
-              <div key={n.id} className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+              <div key={n.id} className="flex items-center justify-between gap-3 rounded-lg border border-ink/[0.08] bg-cream-surface-alt px-3 py-2">
                 <div className="text-sm">
-                  <span className="font-medium text-gray-800">+{n.phone}</span>
-                  {n.label && <span className="text-gray-500"> · {n.label}</span>}
-                  <span className="ml-2 text-xs bg-white border border-gray-200 text-gray-500 px-2 py-0.5 rounded-full">{n.kind}</span>
+                  <span className="font-medium text-ink">+{n.phone}</span>
+                  {n.label && <span className="text-ink-muted"> · {n.label}</span>}
+                  <span className="ml-2 text-xs bg-cream-surface border border-ink/[0.12] text-ink-muted px-2 py-0.5 rounded-full">{n.kind}</span>
                 </div>
                 <button
                   onClick={() => removeWaNumber(n.id)}
                   aria-label={`Remove +${n.phone}`}
-                  className="text-gray-400 hover:text-red-500"
+                  className="text-ink-muted hover:text-red-500"
                 >
                   <Trash2 size={15} />
                 </button>
@@ -888,19 +888,19 @@ export default function SettingsPage() {
             value={waNewPhone}
             onChange={(e) => setWaNewPhone(e.target.value)}
             placeholder="Phone number, e.g. (314) 555-0123"
-            className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400"
+            className="flex-1 rounded-[9px] border border-ink/[0.16] bg-cream-surface px-3 py-2 text-sm outline-none focus:border-terracotta"
           />
           <input
             type="text"
             value={waNewLabel}
             onChange={(e) => setWaNewLabel(e.target.value)}
             placeholder="Whose number? (name)"
-            className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400"
+            className="flex-1 rounded-[9px] border border-ink/[0.16] bg-cream-surface px-3 py-2 text-sm outline-none focus:border-terracotta"
           />
           <select
             value={waNewKind}
             onChange={(e) => setWaNewKind(e.target.value as 'staff' | 'supplier')}
-            className="rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400"
+            className="rounded-[9px] border border-ink/[0.16] bg-cream-surface px-3 py-2 text-sm outline-none focus:border-terracotta"
           >
             <option value="staff">Staff</option>
             <option value="supplier">Supplier</option>
@@ -908,38 +908,38 @@ export default function SettingsPage() {
           <button
             onClick={addWaNumber}
             disabled={waBusy}
-            className="bg-gray-900 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-800 disabled:opacity-50"
+            className="bg-ink text-white text-sm font-medium px-4 py-2 rounded-[9px] hover:bg-black disabled:opacity-50"
           >
             {waBusy ? 'Adding…' : 'Add number'}
           </button>
         </div>
-        {waMsg && <p className="text-sm text-gray-600 mt-3">{waMsg}</p>}
+        {waMsg && <p className="text-sm text-ink-3 mt-3">{waMsg}</p>}
       </div>
 
-      <div className="bg-white rounded-xl border p-6 mb-6">
+      <div className="bg-cream-surface rounded-[14px] border border-ink/[0.08] p-6 mb-6">
         <div className="flex items-center gap-3 mb-5">
-          <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
-            <CreditCard size={18} className="text-purple-600" />
+          <div className="w-10 h-10 bg-pop/10 rounded-xl flex items-center justify-center">
+            <CreditCard size={18} className="text-pop" />
           </div>
           <div>
-            <div className="font-semibold text-gray-900">Business Cards</div>
-            <div className="text-sm text-gray-500">Last 4 digits of the cards this restaurant pays with. Invoices paid on other cards are skipped as personal.</div>
+            <div className="font-semibold text-ink">Business Cards</div>
+            <div className="text-sm text-ink-muted">Last 4 digits of the cards this restaurant pays with. Invoices paid on other cards are skipped as personal.</div>
           </div>
         </div>
 
         {cards.length > 0 ? (
           <div className="flex flex-wrap gap-2 mb-4">
             {cards.map(c => (
-              <span key={c} className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-700 text-sm rounded-full pl-3 pr-1.5 py-1 font-medium">
+              <span key={c} className="inline-flex items-center gap-1.5 bg-cream text-ink-2 text-sm rounded-full pl-3 pr-1.5 py-1 font-medium">
                 •••• {c}
-                <button onClick={() => removeCard(c)} className="w-5 h-5 rounded-full hover:bg-gray-300 flex items-center justify-center text-gray-500 hover:text-gray-800 transition">
+                <button onClick={() => removeCard(c)} className="w-5 h-5 rounded-full hover:bg-ink/[0.08] flex items-center justify-center text-ink-muted hover:text-ink transition">
                   <X size={12} />
                 </button>
               </span>
             ))}
           </div>
         ) : (
-          <div className="text-sm text-gray-400 mb-4">No cards yet. Add the last 4 digits of each business card below.</div>
+          <div className="text-sm text-ink-muted mb-4">No cards yet. Add the last 4 digits of each business card below.</div>
         )}
 
         <div className="flex items-center gap-2 mb-4">
@@ -950,10 +950,10 @@ export default function SettingsPage() {
             placeholder="1234"
             inputMode="numeric"
             maxLength={4}
-            className="w-24 border rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-amber-500 tracking-widest"
+            className="w-24 rounded-[9px] border border-ink/[0.16] bg-cream-surface px-3 py-2 text-sm text-ink-2 outline-none focus:border-terracotta tracking-widest"
           />
           <button onClick={addCard}
-            className="px-4 py-2 bg-white border rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition">
+            className="px-4 py-2 bg-cream-surface border border-ink/[0.14] rounded-[9px] text-sm text-ink-3 hover:bg-cream-surface-alt transition">
             Add card
           </button>
         </div>
@@ -975,48 +975,48 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div className="bg-gray-50 rounded-xl border border-dashed p-6 text-center text-gray-400 mb-6">
+      <div className="bg-cream-surface-alt rounded-[14px] border border-dashed border-ink/[0.16] p-6 text-center text-ink-muted mb-6">
         <div className="text-sm font-medium mb-1">More integrations coming soon</div>
         <div className="text-xs">Gordon Food Service · Costco · Sysco</div>
       </div>
 
-      <div className="bg-white rounded-xl border border-red-200 p-6">
+      <div className="bg-cream-surface rounded-[14px] border border-red-200 p-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center">
             <AlertTriangle size={18} className="text-red-600" />
           </div>
           <div>
             <div className="font-semibold text-red-700">Danger Zone</div>
-            <div className="text-sm text-gray-500">Permanent actions. Read carefully.</div>
+            <div className="text-sm text-ink-muted">Permanent actions. Read carefully.</div>
           </div>
         </div>
 
         <div className="border border-red-100 rounded-lg p-4 bg-red-50/50">
-          <div className="font-medium text-gray-900 mb-1">Delete this restaurant</div>
-          <div className="text-sm text-gray-600 mb-3">
-            Permanently delete <span className="font-semibold text-gray-900">{restaurantName || '—'}</span> and everything attached to it. This cannot be undone.
+          <div className="font-display font-bold text-ink mb-1">Delete this restaurant</div>
+          <div className="text-sm text-ink-3 mb-3">
+            Permanently delete <span className="font-semibold text-ink">{restaurantName || '—'}</span> and everything attached to it. This cannot be undone.
           </div>
 
           {counts && (
-            <div className="text-xs text-gray-600 bg-white border border-red-100 rounded p-3 mb-3 space-y-0.5">
-              <div className="font-medium text-gray-800 mb-1">Will permanently delete:</div>
+            <div className="text-xs text-ink-3 bg-cream-surface border border-red-100 rounded-[9px] p-3 mb-3 space-y-0.5">
+              <div className="font-medium text-ink mb-1">Will permanently delete:</div>
               <div>· {counts.invoice_files.toLocaleString()} invoice file(s)</div>
               <div>· {counts.invoice_headers.toLocaleString()} invoice(s)</div>
               <div>· {counts.invoice_lines.toLocaleString()} line item(s)</div>
               <div>· {counts.pos_sales.toLocaleString()} POS sales record(s)</div>
               <div>· {counts.members.toLocaleString()} team member link(s)</div>
-              <div className="text-gray-500 mt-1">Plus: vendors config, invites, recipes, calibrations, Clover settings.</div>
+              <div className="text-ink-muted mt-1">Plus: vendors config, invites, recipes, calibrations, Clover settings.</div>
             </div>
           )}
 
-          <label className="block text-xs font-medium text-gray-600 mb-1.5 uppercase tracking-wide">
-            Type <span className="font-semibold text-gray-900">{restaurantName}</span> to confirm
+          <label className="block text-xs font-medium text-ink-3 mb-1.5 uppercase tracking-wide">
+            Type <span className="font-semibold text-ink">{restaurantName}</span> to confirm
           </label>
           <input
             value={confirmText}
             onChange={(e) => { setConfirmText(e.target.value); setDeleteErr(null) }}
             placeholder={restaurantName}
-            className="w-full border border-red-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-red-400 mb-3"
+            className="w-full border border-red-200 rounded-lg px-3 py-2 text-sm text-ink-2 focus:outline-none focus:border-red-400 mb-3"
           />
 
           {deleteErr && (
@@ -1034,33 +1034,33 @@ export default function SettingsPage() {
             <Trash2 size={14} />
             {deleting ? 'Deleting…' : 'Delete restaurant permanently'}
           </button>
-          <p className="text-xs text-gray-400 mt-2">
+          <p className="text-xs text-ink-muted mt-2">
             Owner role required. Soft alternative: ask Supabase admin to set <code className="font-mono">is_active=false</code>.
           </p>
         </div>
 
         <div className="border border-red-100 rounded-lg p-4 bg-red-50/50 mt-4">
-          <div className="font-medium text-gray-900 mb-1">Delete your account</div>
-          <div className="text-sm text-gray-600 mb-3">
+          <div className="font-display font-bold text-ink mb-1">Delete your account</div>
+          <div className="text-sm text-ink-3 mb-3">
             Permanently delete your InvoiceIQ account
             {accountEmail && (
               <>
-                {' '}(<span className="font-semibold text-gray-900">{accountEmail}</span>)
+                {' '}(<span className="font-semibold text-ink">{accountEmail}</span>)
               </>
             )}
-            . Every restaurant you <span className="font-semibold text-gray-900">own</span> is
+            . Every restaurant you <span className="font-semibold text-ink">own</span> is
             deleted with all of its invoices, sales and recipes; you will be removed from any
             restaurant you only belong to. This cannot be undone.
           </div>
 
-          <label className="block text-xs font-medium text-gray-600 mb-1.5 uppercase tracking-wide">
+          <label className="block text-xs font-medium text-ink-3 mb-1.5 uppercase tracking-wide">
             Type your account email to confirm
           </label>
           <input
             value={confirmEmailText}
             onChange={(e) => { setConfirmEmailText(e.target.value); setDeleteAccountErr(null) }}
             placeholder={accountEmail ?? 'you@example.com'}
-            className="w-full border border-red-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-red-400 mb-3"
+            className="w-full border border-red-200 rounded-lg px-3 py-2 text-sm text-ink-2 focus:outline-none focus:border-red-400 mb-3"
           />
 
           {deleteAccountErr && (

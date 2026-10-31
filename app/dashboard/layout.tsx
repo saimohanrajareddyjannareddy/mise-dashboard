@@ -154,7 +154,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           Tapping it closes the drawer. */}
       {drawerOpen && (
         <div
-          className="fixed inset-0 z-30 bg-forest/50 md:hidden"
+          className="fixed inset-0 z-30 bg-ink/50 md:hidden"
           aria-hidden="true"
           onClick={() => setDrawerOpen(false)}
         />
