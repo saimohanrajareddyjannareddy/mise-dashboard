@@ -888,19 +888,19 @@ export default function SettingsPage() {
             value={waNewPhone}
             onChange={(e) => setWaNewPhone(e.target.value)}
             placeholder="Phone number, e.g. (314) 555-0123"
-            className="flex-1 rounded-[9px] border border-ink/[0.16] bg-cream-surface px-3 py-2 text-sm outline-none focus:border-terracotta"
+            className="min-w-0 flex-1 rounded-[9px] border border-ink/[0.16] bg-cream-surface px-3 py-2 text-sm outline-none focus:border-terracotta"
           />
           <input
             type="text"
             value={waNewLabel}
             onChange={(e) => setWaNewLabel(e.target.value)}
             placeholder="Whose number? (name)"
-            className="flex-1 rounded-[9px] border border-ink/[0.16] bg-cream-surface px-3 py-2 text-sm outline-none focus:border-terracotta"
+            className="min-w-0 flex-1 rounded-[9px] border border-ink/[0.16] bg-cream-surface px-3 py-2 text-sm outline-none focus:border-terracotta"
           />
           <select
             value={waNewKind}
             onChange={(e) => setWaNewKind(e.target.value as 'staff' | 'supplier')}
-            className="rounded-[9px] border border-ink/[0.16] bg-cream-surface px-3 py-2 text-sm outline-none focus:border-terracotta"
+            className="shrink-0 rounded-[9px] border border-ink/[0.16] bg-cream-surface px-3 py-2 text-sm outline-none focus:border-terracotta"
           >
             <option value="staff">Staff</option>
             <option value="supplier">Supplier</option>
@@ -908,7 +908,7 @@ export default function SettingsPage() {
           <button
             onClick={addWaNumber}
             disabled={waBusy}
-            className="bg-ink text-white text-sm font-medium px-4 py-2 rounded-[9px] hover:bg-black disabled:opacity-50"
+            className="shrink-0 whitespace-nowrap bg-ink text-white text-sm font-medium px-4 py-2 rounded-[9px] hover:bg-black disabled:opacity-50"
           >
             {waBusy ? 'Adding…' : 'Add number'}
           </button>
