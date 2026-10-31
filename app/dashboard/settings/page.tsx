@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRestaurant } from '@/lib/restaurant'
-import { CheckCircle, AlertCircle, Link2, Key, AlertTriangle, Trash2, Store, CreditCard, X, Mail } from 'lucide-react'
+import { CheckCircle, AlertCircle, Link2, Key, AlertTriangle, Trash2, Store, CreditCard, X, Mail, MessageCircle } from 'lucide-react'
 import { useActivity } from '@/lib/activity'
 
 type DeletionCounts = {
@@ -50,6 +50,18 @@ export default function SettingsPage() {
   const [mailBanner, setMailBanner] = useState<string | null>(null)
   const [mailScanning, setMailScanning] = useState(false)
   const [mailMsg, setMailMsg] = useState<string | null>(null)
+
+  // WhatsApp intake: server configuration + this restaurant's
+  // registered sender numbers (routing table, migration 019).
+  type WaSender = { id: string; phone: string; label: string | null; kind: string }
+  const [waConfigured, setWaConfigured] = useState(false)
+  const [waIntakeNumber, setWaIntakeNumber] = useState<string | null>(null)
+  const [waNumbers, setWaNumbers] = useState<WaSender[]>([])
+  const [waNewPhone, setWaNewPhone] = useState('')
+  const [waNewLabel, setWaNewLabel] = useState('')
+  const [waNewKind, setWaNewKind] = useState<'staff' | 'supplier'>('staff')
+  const [waBusy, setWaBusy] = useState(false)
+  const [waMsg, setWaMsg] = useState<string | null>(null)
 
   // Business cards state
   const [cards, setCards] = useState<string[]>([])
@@ -247,6 +259,76 @@ export default function SettingsPage() {
     }
     if (b && messages[b]) setMailBanner(messages[b])
   }, [restaurantId])
+
+  // WhatsApp intake: configuration probe + registered numbers.
+  useEffect(() => {
+    if (!restaurantId) return
+    fetch('/api/whatsapp/status')
+      .then((r) => r.json())
+      .then((j) => {
+        setWaConfigured(!!j.configured)
+        setWaIntakeNumber(j.intake_number ?? null)
+      })
+      .catch(() => {})
+    supabase
+      .from('whatsapp_senders')
+      .select('id, phone, label, kind')
+      .eq('restaurant_id', restaurantId)
+      .order('created_at')
+      .then(({ data, error }) => {
+        if (error) {
+          if (error.message.includes('whatsapp_senders')) {
+            setWaMsg('Almost there — the WhatsApp tables need a quick database update first (migration 019).')
+          }
+          return
+        }
+        setWaNumbers((data as WaSender[]) ?? [])
+      })
+  }, [restaurantId])
+
+  async function addWaNumber() {
+    if (!restaurantId) return
+    const digits = waNewPhone.replace(/\D/g, '')
+    const phone = digits.length === 10 ? `1${digits}` : digits
+    if (phone.length < 11 || phone.length > 15) {
+      setWaMsg('Enter the full number with country code — for a US number, 10 digits is enough.')
+      return
+    }
+    setWaBusy(true)
+    setWaMsg(null)
+    const { data, error } = await supabase
+      .from('whatsapp_senders')
+      .insert({
+        restaurant_id: restaurantId,
+        phone,
+        label: waNewLabel.trim() || null,
+        kind: waNewKind,
+      })
+      .select('id, phone, label, kind')
+      .single()
+    setWaBusy(false)
+    if (error) {
+      setWaMsg(
+        error.message.includes('whatsapp_senders_phone_key') || error.code === '23505'
+          ? 'That number is already registered — a phone number can only file into one restaurant.'
+          : error.message
+      )
+      return
+    }
+    if (data) setWaNumbers((prev) => [...prev, data as WaSender])
+    setWaNewPhone('')
+    setWaNewLabel('')
+    setWaMsg('Number registered. Receipts sent from it will land in Review.')
+  }
+
+  async function removeWaNumber(id: string) {
+    const { error } = await supabase.from('whatsapp_senders').delete().eq('id', id)
+    if (error) {
+      setWaMsg(error.message)
+      return
+    }
+    setWaNumbers((prev) => prev.filter((n) => n.id !== id))
+  }
 
   async function scanNow() {
     if (!restaurantId) return
@@ -743,6 +825,95 @@ export default function SettingsPage() {
           </p>
         )}
         {mailMsg && <p className="text-sm text-gray-600 mt-3">{mailMsg}</p>}
+      </div>
+
+      <div className="bg-white rounded-xl border p-6 mb-6">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
+            <MessageCircle size={18} className="text-green-600" />
+          </div>
+          <div>
+            <div className="font-semibold text-gray-900 flex items-center gap-2">
+              WhatsApp invoices
+              {waConfigured && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex items-center gap-1"><CheckCircle size={10} /> Live</span>}
+            </div>
+            <div className="text-sm text-gray-500">Forward receipt photos on WhatsApp — they file themselves into Review</div>
+          </div>
+        </div>
+
+        <p className="text-sm text-gray-600 mb-4">
+          Suppliers send invoices on WhatsApp; paper gets lost. Register the phone numbers
+          of the people who handle receipts — owner, manager, whoever buys — and any invoice
+          photo or PDF they forward to the InvoiceIQ WhatsApp number is read automatically
+          and placed in your Review queue. Like email, WhatsApp is an outside channel:
+          nothing counts until you approve it.
+        </p>
+
+        {!waConfigured ? (
+          <p className="text-sm text-gray-400 mb-4">
+            WhatsApp intake is not switched on yet — you can register numbers now, and they
+            will start working the moment it goes live.
+          </p>
+        ) : waIntakeNumber ? (
+          <p className="text-sm text-gray-700 mb-4">
+            Send receipts to <span className="font-medium">{waIntakeNumber}</span> from a
+            registered number.
+          </p>
+        ) : null}
+
+        {waNumbers.length > 0 && (
+          <div className="space-y-2 mb-4">
+            {waNumbers.map((n) => (
+              <div key={n.id} className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+                <div className="text-sm">
+                  <span className="font-medium text-gray-800">+{n.phone}</span>
+                  {n.label && <span className="text-gray-500"> · {n.label}</span>}
+                  <span className="ml-2 text-xs bg-white border border-gray-200 text-gray-500 px-2 py-0.5 rounded-full">{n.kind}</span>
+                </div>
+                <button
+                  onClick={() => removeWaNumber(n.id)}
+                  aria-label={`Remove +${n.phone}`}
+                  className="text-gray-400 hover:text-red-500"
+                >
+                  <Trash2 size={15} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <input
+            type="tel"
+            value={waNewPhone}
+            onChange={(e) => setWaNewPhone(e.target.value)}
+            placeholder="Phone number, e.g. (314) 555-0123"
+            className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400"
+          />
+          <input
+            type="text"
+            value={waNewLabel}
+            onChange={(e) => setWaNewLabel(e.target.value)}
+            placeholder="Whose number? (name)"
+            className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400"
+          />
+          <select
+            value={waNewKind}
+            onChange={(e) => setWaNewKind(e.target.value as 'staff' | 'supplier')}
+            className="rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400"
+          >
+            <option value="staff">Staff</option>
+            <option value="supplier">Supplier</option>
+          </select>
+          <button
+            onClick={addWaNumber}
+            disabled={waBusy}
+            className="bg-gray-900 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-800 disabled:opacity-50"
+          >
+            {waBusy ? 'Adding…' : 'Add number'}
+          </button>
+        </div>
+        {waMsg && <p className="text-sm text-gray-600 mt-3">{waMsg}</p>}
       </div>
 
       <div className="bg-white rounded-xl border p-6 mb-6">
